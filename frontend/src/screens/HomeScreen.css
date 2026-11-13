@@ -1,0 +1,150 @@
+.home {
+  background: var(--merino);
+}
+
+.home__scroll {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: calc(16px + var(--safe-top)) 24px calc(var(--tab-bar-space) + 24px + var(--safe-bottom));
+  text-align: center;
+}
+
+/* Hero */
+.home__hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 260px;
+  height: 260px;
+  flex-shrink: 0;
+}
+
+.home__ring,
+.home__circle,
+.home__otter {
+  grid-area: 1 / 1;
+}
+
+.home__ring {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgb(132 179 206 / 0.25);
+}
+.home__circle {
+  width: 204px;
+  height: 204px;
+  border-radius: 50%;
+  background: var(--rock-blue);
+}
+.home__otter {
+  height: 200px;
+  width: auto;
+  margin-top: -20px;
+}
+
+.home__bubble {
+  position: absolute;
+  top: 18px;
+  right: -26px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+
+/* Copy */
+.home__title {
+  font-size: clamp(26px, 8vw, 32px);
+  line-height: 1.2;
+  color: var(--venice);
+  white-space: nowrap;
+}
+.home__tagline {
+  font-size: 20px;
+  line-height: 26px;
+  color: var(--rock-blue);
+  margin-top: -10px;
+}
+.home__body {
+  margin: -4px 0 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--body-text);
+  max-width: 320px;
+}
+
+.home .flood-alert {
+  align-self: stretch;
+}
+
+/* Search */
+.home__search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  height: 56px;
+  padding: 0 8px 0 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid var(--rock-blue);
+  box-shadow: 0 8px 24px rgb(22 88 123 / 0.16);
+  color: var(--venice);
+  text-align: left;
+}
+
+.home__search > span:nth-of-type(1) {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--muted-text);
+}
+.home__search-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.home__mic {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--chip-fill);
+}
+
+.home__mic svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* Chips */
+.home__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: stretch;
+}
+
+.chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.75);
+  border: 1px solid rgb(132 179 206 / 0.5);
+  font-size: 13px;
+  color: var(--venice);
+}
+
+.chip strong {
+  font-weight: 600;
+}
+.chip span {
+  color: var(--muted-text);
+}
