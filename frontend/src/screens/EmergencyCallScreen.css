@@ -1,0 +1,148 @@
+.emergency {
+  background: linear-gradient(#5a1e1a, #2a1718 50%, var(--night-bottom));
+}
+
+.emergency__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+}
+
+.emergency__standby {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.avatar--small {
+  width: 32px;
+  height: 32px;
+}
+.avatar--small img {
+  width: 24px;
+}
+
+.emergency__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--alert-red);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.emergency__live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.emergency__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 34px;
+}
+.emergency__title small {
+  font-size: 17px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+.emergency__title strong {
+  font-size: 64px;
+  line-height: 72px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+.emergency__title span {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--salmon);
+  font-variant-numeric: tabular-nums;
+}
+
+.emergency__shared {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-self: stretch;
+  margin-top: 28px;
+  padding: 18px 20px;
+  border-radius: 28px;
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  text-align: left;
+}
+
+.emergency__shared h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.info-row > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.info-row strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.info-row small {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.info-row__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgb(232 85 63 / 0.18);
+  color: var(--salmon);
+}
+
+.info-row__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.emergency__bottom {
+  margin-top: auto;
+}
+
+.emergency__return {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 52px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.emergency__return img {
+  width: 26px;
+}

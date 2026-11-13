@@ -1,0 +1,12 @@
+[
+  {
+    "id": "zone-pearl-ave",
+    "label": "Flooded · road closed",
+    "polygon": [
+      { "lat": 29.4180, "lng": -98.4930 },
+      { "lat": 29.4236, "lng": -98.4925 },
+      { "lat": 29.4240, "lng": -98.4860 },
+      { "lat": 29.4170, "lng": -98.4850 }
+    ]
+  }
+]

@@ -1,4 +1,8 @@
-# Otterway backend
+# Otterway
+Dell Social AI Impact Datathon
+
+
+## Otterway backend
 
 The CSV is an index of historical images. Each row describes an image, and its coordinates may be the center of an aerial footprint. The backend converts those rows into GeoJSON pins. Historical observations carry no live road-closure status.
 

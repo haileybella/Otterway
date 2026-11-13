@@ -1,0 +1,35 @@
+[
+  {
+    "destinationId": "oak-st-1420",
+    "path": [
+      { "lat": 29.4200, "lng": -98.4950 },
+      { "lat": 29.4248, "lng": -98.4950 },
+      { "lat": 29.4248, "lng": -98.4880 },
+      { "lat": 29.4290, "lng": -98.4880 }
+    ],
+    "steps": [
+      { "instruction": "Continue up Ridge Rd, avoiding flooding", "distanceM": 230, "maneuver": "straight" },
+      { "instruction": "Turn right onto Elm St", "distanceM": 680, "maneuver": "right" },
+      { "instruction": "Turn left onto Oak St", "distanceM": 470, "maneuver": "left" },
+      { "instruction": "Arrive at 1420 Oak St", "distanceM": 0, "maneuver": "arrive" }
+    ],
+    "etaMinutes": 6,
+    "distanceKm": 1.2
+  },
+  {
+    "destinationId": "oakland-ave-1420",
+    "path": [
+      { "lat": 29.4200, "lng": -98.4950 },
+      { "lat": 29.4330, "lng": -98.4950 },
+      { "lat": 29.4330, "lng": -98.4700 },
+      { "lat": 29.4460, "lng": -98.4700 }
+    ],
+    "steps": [
+      { "instruction": "Head north on Ridge Rd", "distanceM": 1400, "maneuver": "straight" },
+      { "instruction": "Turn right onto Hill Ave", "distanceM": 2300, "maneuver": "right" },
+      { "instruction": "Arrive at 1420 Oakland Ave", "distanceM": 0, "maneuver": "arrive" }
+    ],
+    "etaMinutes": 14,
+    "distanceKm": 4.8
+  }
+]

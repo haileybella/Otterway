@@ -1,0 +1,116 @@
+.voice-orb {
+  --orb-size: 210px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--orb-size) * 1.4);
+  height: calc(var(--orb-size) * 1.4);
+  flex-shrink: 0;
+}
+
+.voice-orb__ball {
+  grid-area: 1 / 1;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--merino) 0%, var(--mini-bay) 45%, var(--blue-earth) 100%);
+  transition:
+    opacity 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.voice-orb__glyph {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.voice-orb__glyph svg {
+  width: calc(var(--orb-size) * 0.21);
+  height: calc(var(--orb-size) * 0.21);
+}
+
+.voice-orb__ring {
+  grid-area: 1 / 1;
+  border-radius: 50%;
+  border: 2px solid var(--mini-bay);
+  animation: orb-pulse 1.6s ease-in-out infinite alternate;
+}
+
+.voice-orb__ring--outer {
+  width: 100%;
+  height: 100%;
+  opacity: 0.25;
+}
+.voice-orb__ring--inner {
+  width: 86%;
+  height: 86%;
+  opacity: 0.45;
+  animation-delay: 0.3s;
+}
+
+/* States */
+.voice-orb--idle .voice-orb__ball {
+  opacity: 0.55;
+  box-shadow: 0 0 20px rgb(139 177 211 / 0.15);
+}
+.voice-orb--idle .voice-orb__glyph svg {
+  width: calc(var(--orb-size) * 0.15);
+  height: calc(var(--orb-size) * 0.15);
+}
+.voice-orb--listening .voice-orb__ball {
+  box-shadow: 0 0 50px 4px rgb(139 177 211 / 0.5);
+  animation: orb-breathe 1.4s ease-in-out infinite alternate;
+}
+.voice-orb--thinking .voice-orb__ball {
+  opacity: 0.85;
+  box-shadow: 0 0 30px rgb(139 177 211 / 0.3);
+}
+.voice-orb--speaking .voice-orb__ball {
+  box-shadow: 0 0 70px 6px rgb(139 177 211 / 0.7);
+}
+
+.voice-orb__dots {
+  display: flex;
+  gap: 8px;
+}
+.voice-orb__dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  animation: orb-dot 1s ease-in-out infinite;
+}
+.voice-orb__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.voice-orb__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes orb-pulse {
+  from {
+    transform: scale(0.95);
+  }
+  to {
+    transform: scale(1.04);
+  }
+}
+@keyframes orb-breathe {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+@keyframes orb-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
