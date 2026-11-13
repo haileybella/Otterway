@@ -1,0 +1,42 @@
+.pill-button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    transform 0.1s ease,
+    filter 0.15s ease;
+}
+
+.pill-button:active {
+  transform: scale(0.97);
+}
+
+.pill-button svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.pill-button--primary {
+  background: var(--venice);
+  color: var(--merino);
+}
+.pill-button--secondary {
+  background: var(--surface);
+  color: var(--venice);
+}
+.pill-button--danger {
+  background: var(--emergency-red);
+  color: #fff;
+}
+.pill-button--soft {
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
