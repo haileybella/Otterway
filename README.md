@@ -1,0 +1,41 @@
+# Otterway backend
+
+The CSV is an index of historical images. Each row describes an image, and its coordinates may be the center of an aerial footprint. The backend converts those rows into GeoJSON pins. Historical observations carry no live road-closure status.
+
+## Start locally
+
+From the Otterway folder, run `python3 server.py` with Python 3.9 or newer. By default it reads the CSV and images from the sibling GB10competition folder. Set `OTTERWAY_CSV` and `OTTERWAY_IMAGES` to override those paths. Restart after adding images or changing the CSV.
+
+| Endpoint | What it gives you |
+|---|---|
+| `GET /api/health` | Server status and whether a key is configured |
+| `GET /api/observations` | Map pins as a GeoJSON FeatureCollection |
+| `GET /api/images/{image_id}` | An image if the corresponding file exists locally |
+| `GET /api/reverse?lat=29.4241&lon=-98.4936` | An approximate nearby address or place label |
+| `POST /api/route` | Driving route geometry and turn steps |
+
+## Connect the mapping APIs
+
+[Sign up with HeiGIT](https://account.heigit.org/) and copy the full Standard API key from your dashboard. Enter it privately in your terminal using the default macOS shell, zsh.
+
+```zsh
+read -rs 'HEIGIT_API_KEY?Paste your HeiGIT key and press Return: '
+export HEIGIT_API_KEY
+python3 server.py
+```
+
+Then try these in a second terminal.
+
+```sh
+curl 'http://127.0.0.1:8000/api/reverse?lat=29.4241&lon=-98.4936'
+curl http://127.0.0.1:8000/api/route -H 'Content-Type: application/json' \
+  -d '{"origin":{"lat":29.4241,"lon":-98.4936},"destination":{"lat":29.4407,"lon":-98.4803}}'
+```
+
+Routes and map geometry use GeoJSON order `[longitude, latitude]`. The app sends named `lat` and `lon` fields so the backend can put them in the right order. The route's `properties.segments[].steps` contain instructions the frontend can speak. The frontend owns device GPS and decides when to advance or request a new route. Live flood closure data and avoidance would be a separate integration.
+
+The basemap is separate. For a small interactive demo, a map library can display OpenStreetMap tiles under the [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/) with visible attribution. The directions and address services come from [HeiGIT](https://api.heigit.org/). The API key stays in the backend terminal. For a separate local frontend origin, set `OTTERWAY_FRONTEND_ORIGIN` to its exact origin, for example `http://localhost:5173`.
+
+## Add the photos
+
+Find the image's row by `image_id`. Check `source_url`, `source_download_url`, `reuse`, and `attribution`. Start with one before/after pair and follow the source's download and reuse terms. Save each image using the filename from the row's `image_path` under the configured images folder. The backend accepts both the CSV's relative directory layout and a flat folder with the same filenames. Restart and look for an `image_url` on the pin. A missing photo has a null URL and the pin still displays if coordinates exist. Rows without coordinates have null geometry. For example, the local AF001 photo is available at /api/images/AF001 but has no map position in the CSV.
