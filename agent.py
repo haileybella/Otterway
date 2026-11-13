@@ -1,3 +1,5 @@
+import re
+
 from flask import Flask, request
 from openai import OpenAI
 from twilio.twiml.voice_response import VoiceResponse, Gather
@@ -10,29 +12,55 @@ QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
 LOCATION = "UT San Antonio"  # test value for now
 BASE_URL = "https://harvest-trickster-upscale.ngrok-free.dev"
 
+GOODBYE = re.compile(r"\b(bye|goodbye)\b", re.IGNORECASE)
+
 SYSTEM = (
-    f"You are a flood safety assistant on a phone call. The caller is at {LOCATION}. "
-    "Reply in one or two short sentences. "
-    "You have NO information about which places or roads are flooded. "
-    "Never say that any place or road is flooded, closed, safe or clear. "
-    "When the caller names a destination, repeat it back to confirm it, then say that "
-    "route lookup is not connected yet. "
-    "Naming a destination is not an emergency. Only tell the caller to hang up and call 911 "
-    "if they themselves describe immediate danger, such as being trapped, water entering "
-    "their car or home, or someone being hurt. "
-    "If their mode of transport is dangerous, such as walking during a flood or driving "
-    "during heavy rain, notify the caller and provide a safer alternative, such as traveling "
-    "with other people, waiting for the storm to pass, or finding a safe shelter."
+    f"You are a flood safety assistant talking with someone on a phone call. The caller is at {LOCATION}. "
+    "They may be stressed or on the move, and they hear your words read aloud. Reply in one to "
+    "three short, plain sentences, with no lists and no special characters. If you are not sure "
+    "what they said, ask them to repeat it. "
+
+    "What you know: you have no live information about which places or roads are flooded, closed, "
+    "safe or clear, so never claim that about any specific place or road. Route lookup is not "
+    "connected yet, so if asked for directions, say so. You can give the general flood safety "
+    "guidance below. "
+
+    "How the call should go: when the caller names a destination, repeat it back to confirm it. "
+    "If they have not said how they plan to travel, ask. "
+
+    "Judging the travel plan: the danger is the flood water itself, and it is the same whether "
+    "someone is alone or in a group. Never suggest that travelling with other people makes an "
+    "unsafe plan safe. Walking, cycling, or riding a motorcycle or scooter where there may be "
+    "flood water is unsafe, because six inches of moving water can knock an adult off their feet, "
+    "and water hides open drains, debris and downed power lines. Driving is safer than being on "
+    "foot or on a bike, but only on roads with no water on them, because a foot of moving water "
+    "can carry away a car and its depth is impossible to judge, especially at night. Drivers "
+    "should never enter water covering a road and should avoid low water crossings, underpasses "
+    "and roads beside creeks or rivers. "
+
+    "Safer options: if the trip is not urgent and the caller is somewhere dry and on high ground, "
+    "the safest choice is usually to stay there until the water goes down. If they have to leave "
+    "because where they are is unsafe, they should head for higher ground or the nearest shelter "
+    "and turn around if they meet water. "
+
+    "When the caller's plan is unsafe, say so plainly, give the reason in one sentence, and offer "
+    "the safer option that fits their situation. Say it once and calmly, without lecturing or "
+    "repeating it every turn. If their plan is reasonable, do not invent a warning. "
+
+    "Emergencies: naming a destination or asking a question is not an emergency. Tell the caller "
+    "to hang up and call 911 only if they describe immediate danger, such as being trapped, water "
+    "entering their car or home, being swept along by water, or someone being hurt."
 )
 GREETING = (
-    f"Hi, this is Ollie. I can help you look up directions. If you’re in immediate danger or need "
-    f"emergency help, slide the button to call nine-one-one. "
-    f" For non-emergency city services in San Antonio, call three-one-one, or two-one-zero,"
-    f" two-zero-seven, six-zero-zero-zero."
+    "Hi, this is Ollie. I can help you look up directions. If you're in immediate danger or need "
+    "emergency help, slide the button to call nine-one-one. "
+    "For non-emergency city services in San Antonio, call three-one-one, or two-one-zero, "
+    "two-zero-seven, six-zero-zero-zero. "
     f"I have your location as {LOCATION}. Where are you trying to get to?"
 )
 
 history = {}  # one conversation per call, kept in memory only
+
 
 def speak_then_listen(text):
     print("AGENT: ", text, flush=True)
@@ -41,6 +69,14 @@ def speak_then_listen(text):
     gather.say(text)
     resp.append(gather)
     resp.redirect(f"{BASE_URL}/turn")  # reached only if the caller says nothing
+    return str(resp), 200, {"Content-Type": "text/xml"}
+
+
+def speak_then_hang_up(text):
+    print("AGENT: ", text, flush=True)
+    resp = VoiceResponse()
+    resp.say(text)
+    resp.hangup()
     return str(resp), 200, {"Content-Type": "text/xml"}
 
 
@@ -55,18 +91,21 @@ def voice():
 
 @app.route("/turn", methods=["GET", "POST"])
 def turn():
-    messages = history.setdefault(
-        request.values["CallSid"], [{"role": "system", "content": SYSTEM}]
-    )
+    call_sid = request.values["CallSid"]
+    messages = history.setdefault(call_sid, [{"role": "system", "content": SYSTEM}])
     said = request.values.get("SpeechResult")
     print("CALLER:", said, "| confidence:", request.values.get("Confidence"), flush=True)
     if not said:
         return speak_then_listen("Sorry, I didn't catch that. Where are you trying to get to?")
 
+    if GOODBYE.search(said) and len(said.split()) <= 6:
+        history.pop(call_sid, None)  # forget the finished call
+        return speak_then_hang_up("Goodbye, and stay safe.")
+
     messages.append({"role": "user", "content": said})
     try:
         completion = client.chat.completions.create(
-            model=QWEN_MODEL, messages=messages, max_tokens=80, temperature=0.2
+            model=QWEN_MODEL, messages=messages, max_tokens=120, temperature=0.2
         )
         reply = completion.choices[0].message.content
     except Exception as err:
