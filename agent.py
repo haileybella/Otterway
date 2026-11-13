@@ -96,7 +96,8 @@ def send_transcript(call_sid):
 
     def deliver():
         try:
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as smtp:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as smtp:
+                smtp.starttls()
                 smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
                 smtp.send_message(msg)
             print("Transcript emailed", flush=True)
