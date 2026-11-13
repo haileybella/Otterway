@@ -86,6 +86,32 @@ def heigit(path, payload=None):
         raise ApiError(502, "Could not read a response from HeiGIT.") from error
 
 
+
+def load_closures():
+    """Read the operator's current, verified closure polygons."""
+    path = os.getenv("OTTERWAY_CLOSURES")
+    if not path:
+        return {"type": "FeatureCollection", "features": []}
+    try:
+        data = json.loads(Path(path).read_text())
+        if data["type"] != "FeatureCollection":
+            raise ValueError("Expected a FeatureCollection.")
+        for feature in data["features"]:
+            geometry = feature["geometry"]
+            properties = feature["properties"]
+            if geometry["type"] != "Polygon" or not properties["source"]:
+                raise ValueError("Each closure needs a Polygon and a source.")
+            if not geometry["coordinates"]:
+                raise ValueError("Expected polygon rings.")
+            for ring in geometry["coordinates"]:
+                if len(ring) < 4 or ring[0] != ring[-1]:
+                    raise ValueError("Expected a closed polygon ring.")
+                for lon, lat in ring:
+                    coordinates(lat, lon)
+        return data
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise ApiError(503, "Could not load closure polygons. Check OTTERWAY_CLOSURES.") from error
+
 class Handler(BaseHTTPRequestHandler):
     def log_request(self, code="-", size="-"):
         # Keep GPS query strings out of access logs.
@@ -114,8 +140,27 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlsplit(self.path)
         try:
-            if url.path == "/api/health":
+            if url.path in ("/", "/map.html"):
+                page = Path(__file__).with_name("map.html")
+                if not page.is_file():
+                    raise ApiError(404, "Map page is unavailable.")
+                self.send_body(200, page.read_bytes(), "text/html; charset=utf-8")
+            elif url.path == "/api/search":
+                query = parse_qs(url.query).get("q", [""])[0].strip()
+                if not 2 <= len(query) <= 200:
+                    raise ApiError(400, "Enter a place name or address.")
+                params = urlencode({"text": query, "size": 1})
+                result = heigit("/pelias/v1/search?" + params)
+                matches = result.get("features", [])
+                if not matches:
+                    raise ApiError(404, "No destination found. Try adding the city or ZIP code.")
+                match = matches[0]
+                lon, lat = match["geometry"]["coordinates"]
+                self.reply(200, {"lat": lat, "lon": lon, "label": match["properties"]["label"]})
+            elif url.path == "/api/health":
                 self.reply(200, {"status": "ok", "routing_configured": bool(os.getenv("HEIGIT_API_KEY", "").strip())})
+            elif url.path == "/api/closures":
+                self.reply(200, load_closures())
             elif url.path == "/api/observations":
                 self.reply(200, self.server.observations)
             elif url.path.startswith("/api/images/"):
@@ -149,8 +194,15 @@ class Handler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             points = [coordinates(payload[name]["lat"], payload[name]["lon"])
                       for name in ("origin", "destination")]
-            result = heigit("/openrouteservice/v2/directions/driving-car/geojson",
-                            {"coordinates": points, "instructions": True})
+            closures = load_closures()
+            request = {"coordinates": points, "instructions": True, "instructions_format": "text"}
+            polygons = [feature["geometry"]["coordinates"] for feature in closures["features"]]
+            if polygons:
+                request["options"] = {
+                    "avoid_polygons": {"type": "MultiPolygon", "coordinates": polygons}
+                }
+            result = heigit("/openrouteservice/v2/directions/driving-car/geojson", request)
+            result["otterway_closures"] = closures
             self.reply(200, result)
         except (KeyError, TypeError, ValueError):
             self.reply(400, {"error": "Provide origin and destination objects with lat and lon."})

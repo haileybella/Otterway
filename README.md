@@ -39,3 +39,11 @@ The basemap is separate. For a small interactive demo, a map library can display
 ## Add the photos
 
 Find the image's row by `image_id`. Check `source_url`, `source_download_url`, `reuse`, and `attribution`. Start with one before/after pair and follow the source's download and reuse terms. Save each image using the filename from the row's `image_path` under the configured images folder. The backend accepts both the CSV's relative directory layout and a flat folder with the same filenames. Restart and look for an `image_url` on the pin. A missing photo has a null URL and the pin still displays if coordinates exist. Rows without coordinates have null geometry. For example, the local AF001 photo is available at /api/images/AF001 but has no map position in the CSV.
+
+## In-app route and voice
+
+Start the backend with your HeiGIT key, then open [the local map](http://127.0.0.1:8000/map.html). Select **Use my location**, enter a destination, and select **Get directions**. **Start voice guidance** reads the current maneuver using the browser voice and advances as accurate location updates approach the next maneuver. **Next step** lets you step through a route during a stationary demo. The prototype uses proximity to maneuvers and has no automatic off-route recalculation. The browser must allow location access.
+
+To add verified active closures, set `OTTERWAY_CLOSURES` to the path of a GeoJSON FeatureCollection. Each feature needs a Polygon geometry with closed rings in longitude, latitude order and a `properties.source` identifying the closure report. An optional `properties.label` appears on the map. Keep the file current by removing reopened roads. The server reads it for each route request and sends the polygons as areas to avoid. A route can be unavailable if a closure blocks access to an endpoint.
+
+Historical observations appear as brown points. The closure polygons are red. Use official closure reports to choose polygons. CSV points often represent aerial image centers and do not establish current closures.
