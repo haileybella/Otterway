@@ -18,6 +18,7 @@
     .flood-legend { background: white; padding: .6rem; border-radius: .4rem; }
     .flood-legend span { display: inline-block; width: .8rem; height: .8rem; margin-right: .35rem; vertical-align: middle; }
     .flood-dot { border: 2px solid #0759a8; border-radius: 50%; box-sizing: border-box; }
+    .fema-dot { border: 0; background: #58a9df; }
     .flood-confirmed { background: #0759a8; }
     .flood-area { background: #b9dcfc; border: 1px solid #0759a8; box-sizing: border-box; }
     #status { margin: .5rem 0 0; }
@@ -50,6 +51,7 @@
   </div>
   <div id="map" aria-label="Otterway location map" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js"></script>
   <script>
     const status = document.getElementById("status");
     if (!window.L) {
@@ -137,6 +139,16 @@
       let endpointMarkers;
 
       async function resolvePlace(query) {
+        const coordinate = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+        const parts = query.split(",").map(part => part.trim());
+        if (parts.length === 2 && parts.every(part => coordinate.test(part))) {
+          const [lat, lon] = parts.map(Number);
+          if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+            throw new Error("Enter valid coordinates in latitude, longitude order.");
+          }
+          return { lat, lon, label: lat + ", " + lon };
+        }
+
         const response = await fetch(api + "/api/search?" + new URLSearchParams({ q: query }));
         const place = await response.json();
         if (!response.ok) throw new Error(place.error || "Location lookup failed.");
@@ -231,40 +243,103 @@
       metadataPane.style.zIndex = "390";
       const metadataLayer = L.geoJSON(null, {
         filter: feature => feature.geometry?.type === "Point",
-        pointToLayer: (_, point) => L.circleMarker(point, {
-          pane: "metadata", radius: 4, color: "#525866", weight: 1, fillOpacity: 0.5
+        pointToLayer: (feature, point) => L.circleMarker(point, {
+          pane: "metadata", radius: 4,
+          color: feature.properties.fema_sfha === true ? "#58a9df" : "#525866",
+          weight: 1, fillOpacity: 0.65
         }),
         onEachFeature(feature, layer) {
           const label = document.createElement("span");
-          const { locality, acquisition_date, image_id } = feature.properties;
-          label.textContent = [locality, acquisition_date, image_id].filter(Boolean).join(" · ");
+          const { locality, acquisition_date, image_id, fema_sfha } = feature.properties;
+          const hazard = fema_sfha === true ? "FEMA Special Flood Hazard Area"
+            : fema_sfha === false ? "Outside FEMA Special Flood Hazard Area"
+            : "FEMA hazard status unavailable";
+          label.textContent = [locality, acquisition_date, image_id, hazard].filter(Boolean).join(" · ");
           layer.bindPopup(label);
         }
       });
-      L.control.layers({}, { "All metadata points": metadataLayer }).addTo(map);
+      const hazardPane = map.createPane("hazardFootprints");
+      hazardPane.style.zIndex = "380";
+      const hazardLayer = L.layerGroup().addTo(map);
+      const hazardRenderer = L.svg({ pane: "hazardFootprints" });
+      const hazardColors = { moderate: "#d58b39", special: "#37b5c4", floodway: "#236b9b" };
+      const layerMenu = L.control.layers({}, {
+        "FEMA hazard samples": hazardLayer,
+        "All metadata points": metadataLayer
+      }).addTo(map);
 
-      let metadataRequest;
-      metadataLayer.on("add", () => {
-        if (metadataRequest) return;
-        metadataRequest = fetch(api + "/api/observations")
+      const providerPane = map.createPane("providerFloodZones");
+      providerPane.style.zIndex = "375";
+      const providerStatus = document.createElement("div");
+      providerStatus.setAttribute("role", "status");
+      if (L.vectorGrid) {
+        const providerLayer = L.vectorGrid.protobuf(api + "/api/flood-tiles/{z}/{x}/{y}.mvt", {
+          pane: "providerFloodZones",
+          minZoom: 10,
+          maxNativeZoom: 16,
+          maxZoom: 19,
+          attribution: "National Flood Data / FEMA",
+          vectorTileLayerStyles: {
+            default: properties => {
+              const floodway = properties.zone_subty === "FLOODWAY";
+              const moderate = properties.zone_subty === "0.2 PCT ANNUAL CHANCE FLOOD HAZARD";
+              const special = properties.sfha_tf === "T" || properties.sfha_tf === true;
+              if (!floodway && !moderate && !special) return [];
+              const color = floodway ? "#236b9b" : moderate ? "#d58b39" : "#37b5c4";
+              return { color, weight: 1, fill: true, fillColor: color, fillOpacity: 0.28 };
+            }
+          }
+        });
+        layerMenu.addOverlay(providerLayer, "National Flood Data zones");
+        const updateProviderStatus = () => {
+          providerStatus.textContent = map.getZoom() < 10 ? "Zoom in to see National Flood Data zones." : "";
+        };
+        providerLayer.on("add", updateProviderStatus);
+        providerLayer.on("tileerror", () => {
+          providerStatus.textContent = "National Flood Data tiles are unavailable.";
+        });
+        providerLayer.on("remove", () => { providerStatus.textContent = ""; });
+        map.on("zoomend", () => {
+          if (map.hasLayer(providerLayer)) updateProviderStatus();
+        });
+      } else {
+        providerStatus.textContent = "National Flood Data map renderer could not load.";
+      }
+
+      function loadMapData() {
+        return fetch(api + "/api/observations")
           .then(response => {
             if (!response.ok) throw new Error("Metadata unavailable.");
             return response.json();
           })
-          .then(data => metadataLayer.clearLayers().addData(data))
-          .catch(() => {
-            routeStatus.textContent = "Metadata points are unavailable. Toggle the layer to retry.";
+          .then(data => {
+            metadataLayer.clearLayers().addData(data);
+            hazardLayer.clearLayers();
+            const rings = { moderate: [], special: [], floodway: [] };
+            for (const { properties } of data.features) {
+              const { hazard_band, footprint_bounds } = properties;
+              if (!hazard_band || !footprint_bounds) continue;
+              const [[south, west], [north, east]] = footprint_bounds;
+              rings[hazard_band].push([[[south, west], [south, east], [north, east], [north, west]]]);
+            }
+            for (const [band, footprints] of Object.entries(rings)) {
+              if (!footprints.length) continue;
+              L.polygon(footprints, {
+                renderer: hazardRenderer, pane: "hazardFootprints", interactive: false,
+                stroke: false, fillColor: hazardColors[band], fillOpacity: 0.22, fillRule: "nonzero"
+              }).addTo(hazardLayer);
+            }
           })
-          .finally(() => { metadataRequest = null; });
-      });
+          .catch(() => {
+            routeStatus.textContent = "Metadata and FEMA hazard samples are unavailable.";
+          });
+      }
 
       metadataLayer.addTo(map);
+      const metadataRequest = loadMapData();
 
       const floodLayer = L.geoJSON(null, {
-        style: feature => feature.geometry.type === "Point" ? {} : ({
-          color: "#0759a8", weight: 1, fillOpacity: 0.19,
-          dashArray: feature.properties.status === "candidate" ? "5 4" : undefined
-        }),
+        filter: feature => feature.geometry.type === "Point",
         pointToLayer: (feature, point) => L.circleMarker(point, {
           radius: 6, color: "#0759a8", weight: 2, fillColor: "#0759a8",
           fillOpacity: feature.properties.status === "confirmed" ? 1 : 0
@@ -273,12 +348,49 @@
           const label = document.createElement("span");
           const status = feature.properties.status === "confirmed"
             ? "Flood confirmed in source record" : "Unverified flood candidate";
-          const footprint = feature.geometry.type === "Polygon" ? "Image footprint" : "";
-          label.textContent = [status, footprint, feature.properties.locality,
+          label.textContent = [status, feature.properties.locality,
             feature.properties.date].filter(Boolean).join(" · ");
           layer.bindPopup(label);
         }
       }).addTo(map);
+
+      const zonePane = map.createPane("floodZones");
+      zonePane.style.zIndex = "385";
+      const floodZones = L.layerGroup().addTo(map);
+
+      function drawFloodZones(features) {
+        // The CSV supplies rectangular footprints. Group overlapping or touching bounds.
+        const remaining = features
+          .filter(feature => feature.geometry.type === "Polygon")
+          .map(feature => ({
+            ring: feature.geometry.coordinates[0].map(([lon, lat]) => [lat, lon]),
+            status: feature.properties.status
+          }));
+        for (const footprint of remaining) footprint.bounds = L.latLngBounds(footprint.ring);
+
+        floodZones.clearLayers();
+        while (remaining.length) {
+          const zone = [remaining.pop()];
+          for (const footprint of zone) {
+            for (let index = remaining.length - 1; index >= 0; index--) {
+              if (footprint.bounds.intersects(remaining[index].bounds)) {
+                zone.push(remaining.splice(index, 1)[0]);
+              }
+            }
+          }
+
+          // Render each group in one path so overlaps receive one fill.
+          const confirmed = zone.filter(footprint => footprint.status === "confirmed").length;
+          L.polygon(zone.map(footprint => [footprint.ring]), {
+            pane: "floodZones", renderer: zoneRenderer, stroke: false,
+            fillColor: "#0759a8", fillOpacity: 0.28, fillRule: "nonzero"
+          }).addTo(floodZones).bindPopup(
+            zone.length + " image footprints · " + confirmed + " with confirmed flood observations"
+          );
+        }
+      }
+
+      const zoneRenderer = L.svg({ pane: "floodZones" });
 
       const legend = L.control({ position: "bottomleft" });
       let floodStatus;
@@ -287,7 +399,12 @@
         content.innerHTML = '<strong>Flood observations</strong>' +
           '<div><span class="flood-dot flood-confirmed"></span>Confirmed location</div>' +
           '<div><span class="flood-dot"></span>Unverified candidate</div>' +
-          '<div><span class="flood-area"></span>Image footprint</div>' +
+          '<div><span class="flood-area"></span>Connected image footprints</div>' +
+          '<div><span class="flood-dot fema-dot"></span>FEMA hazard area point</div>' +
+          '<strong>FEMA hazard colors</strong>' +
+          '<div><span style="background:#236b9b"></span>Floodway</div>' +
+          '<div><span style="background:#37b5c4"></span>Special Flood Hazard Area</div>' +
+          '<div><span style="background:#d58b39"></span>0.2% annual flood chance</div>' +
           '<div class="flood-status" role="status"></div>' +
           '<button type="button">Zoom to all points</button>';
         content.querySelector("button").addEventListener("click", () => {
@@ -297,6 +414,7 @@
             if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
           });
         });
+        content.append(providerStatus);
         floodStatus = content.querySelector(".flood-status");
         L.DomEvent.disableClickPropagation(content);
         return content;
@@ -309,6 +427,7 @@
           const response = await fetch(api + "/api/floods", { cache: "no-store" });
           if (!response.ok) throw new Error("Flood data unavailable.");
           const data = await response.json();
+          drawFloodZones(data.features);
           floodLayer.clearLayers().addData(data);
           const points = data.features.filter(feature => feature.geometry.type === "Point");
           const confirmed = points.filter(feature => feature.properties.status === "confirmed").length;
@@ -386,7 +505,9 @@
           turns.hidden = !stepList.children.length;
           routeStatus.textContent = (origin.label || "Your location") + " → " + place.label + " · " +
             Math.round(summary.distance / 1609.344) + " mi · " +
-            Math.round(summary.duration / 60) + " min";
+            Math.round(summary.duration / 60) + " min · " +
+            (route.otterway_detour ? "Detour avoids mapped flood observations and closures"
+              : "Checked against mapped flood observations and closures");
         } catch (error) {
           routeStatus.textContent = error instanceof TypeError
             ? "Otterway’s route server is unavailable. Start or restart server.py and try again."
