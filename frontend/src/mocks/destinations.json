@@ -1,0 +1,26 @@
+[
+  {
+    "id": "oak-st-1420",
+    "name": "1420 Oak St",
+    "subtitle": "San Antonio, TX",
+    "location": { "lat": 29.4290, "lng": -98.4880 },
+    "distanceKm": 1.2,
+    "floodStatus": "clear"
+  },
+  {
+    "id": "oakland-ave-1420",
+    "name": "1420 Oakland Ave",
+    "subtitle": "San Antonio, TX",
+    "location": { "lat": 29.4460, "lng": -98.4700 },
+    "distanceKm": 4.8,
+    "floodStatus": "flooding_nearby"
+  },
+  {
+    "id": "oak-hills-center",
+    "name": "Oak Hills Center",
+    "subtitle": "Riverbend Rd",
+    "location": { "lat": 29.4050, "lng": -98.4600 },
+    "distanceKm": 6.1,
+    "floodStatus": "no_safe_route"
+  }
+]

@@ -1,0 +1,76 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #d9dee3;
+  font-family: var(--font-ui);
+  color: var(--venice);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* On phones the app fills the screen; on desktop it shows as a phone-width column. */
+#root {
+  position: relative;
+  max-width: 480px;
+  height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--merino);
+  box-shadow: 0 0 40px rgb(0 0 0 / 0.08);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--map-blue);
+  outline-offset: 2px;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

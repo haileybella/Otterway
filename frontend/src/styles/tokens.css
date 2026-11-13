@@ -1,0 +1,48 @@
+/* Design tokens: match the Otterway Figma file */
+:root {
+  /* Brand */
+  --merino: #f5eedd;
+  --rock-blue: #84b3ce;
+  --venice: #16587b;
+  --body-text: #3c6a84;
+  --muted-text: #5c849a;
+  --surface: #eef3f5;
+  --chip-fill: #e6eff4;
+
+  /* Map */
+  --map-blue: #2e9bd6;
+
+  /* Call screens */
+  --night: #1f2e42;
+  --night-top: #2a3e57;
+  --night-bottom: #121b27;
+  --mini-bay: #8bb1d3;
+  --blue-earth: #385576;
+  --live-green: #5fd08a;
+
+  /* Status */
+  --alert-red: #e8553f;
+  --emergency-red: #c8412d;
+  --emergency-bar: #a8321f;
+  --danger-bg: #fbe2dd;
+  --salmon: #f3a497;
+  --warn-bg: #fcebcb;
+  --warn-stroke: #e9b25c;
+  --warn-text: #6b4410;
+  --warn-subtext: #8a5a1c;
+  --ok-bg: #e3f4ea;
+  --ok-text: #2e7d4f;
+
+  /* Type: headings use Fraunces; UI uses the phone's system font (SF Pro on iPhone, Roboto on Android) */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Effects */
+  --shadow-card: 0 8px 28px rgb(22 88 123 / 0.16);
+  --shadow-soft: 0 6px 18px rgb(22 88 123 / 0.15);
+
+  /* Layout */
+  --tab-bar-space: 96px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
