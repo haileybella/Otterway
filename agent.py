@@ -1,12 +1,13 @@
-import requests
 from flask import Flask, request
+from openai import OpenAI
 from twilio.twiml.voice_response import VoiceResponse, Gather
 
 app = Flask(__name__)
 
-QWEN_URL = "http://localhost:11434/v1/chat/completions"  # change to match how Qwen is served
-QWEN_MODEL = "your-qwen-model-name"
-LOCATION = "Main Street and 5th Avenue"                  # test value for now
+client = OpenAI(base_url="http://10.184.237.138:8000/v1", api_key="NONE", timeout=4)
+
+QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
+LOCATION = "UT San Antonio"  # test value for now
 
 SYSTEM = (
     f"You are a flood safety assistant on a phone call. The caller is at {LOCATION}. "
@@ -30,31 +31,35 @@ def speak_then_listen(text):
     return str(resp), 200, {"Content-Type": "text/xml"}
 
 
-@app.post("/voice")
+@app.route("/voice", methods=["GET", "POST"])
 def voice():
-    history[request.form["CallSid"]] = [
+    history[request.values["CallSid"]] = [
         {"role": "system", "content": SYSTEM},
         {"role": "assistant", "content": GREETING},
     ]
     return speak_then_listen(GREETING)
 
 
-@app.post("/turn")
+@app.route("/turn", methods=["GET", "POST"])
 def turn():
     messages = history.setdefault(
-        request.form["CallSid"], [{"role": "system", "content": SYSTEM}]
+        request.values["CallSid"], [{"role": "system", "content": SYSTEM}]
     )
-    said = request.form.get("SpeechResult")
+    said = request.values.get("SpeechResult")
     if not said:
         return speak_then_listen("Sorry, I didn't catch that. Where are you trying to get to?")
 
     messages.append({"role": "user", "content": said})
-    r = requests.post(
-        QWEN_URL,
-        json={"model": QWEN_MODEL, "messages": messages, "max_tokens": 80},
-        timeout=4,  # Twilio gives up after 5 seconds
-    )
-    reply = r.json()["choices"][0]["message"]["content"]
+    try:
+        completion = client.chat.completions.create(
+            model=QWEN_MODEL, messages=messages, max_tokens=80
+        )
+        reply = completion.choices[0].message.content
+    except Exception as err:
+        print("Qwen error:", err)
+        messages.pop()  # forget the turn that failed
+        return speak_then_listen("Sorry, I had trouble with that. Could you say it again?")
+
     messages.append({"role": "assistant", "content": reply})
     return speak_then_listen(reply)
 
