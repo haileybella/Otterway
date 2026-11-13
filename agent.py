@@ -5,11 +5,14 @@ import threading
 import time
 from datetime import datetime
 from email.message import EmailMessage
+from urllib.parse import urlencode
 
 from flask import Flask, request
 from openai import OpenAI
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Gather
+
+import server  # Otterway's route server: flood data, place lookup and flood-avoiding routes
 
 app = Flask(__name__)
 
@@ -17,6 +20,7 @@ client = OpenAI(base_url="http://10.184.237.138:8000/v1", api_key="NONE", timeou
 
 QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
 LOCATION = "UT San Antonio"  # test value for now
+LOCATION_COORDS = (29.5831, -98.6199)  # latitude, longitude of that test location
 BASE_URL = "https://harvest-trickster-upscale.ngrok-free.dev"
 
 GMAIL_SENDER = os.environ.get("GMAIL_SENDER")
@@ -24,6 +28,8 @@ GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
 TRANSCRIPT_TO = os.environ.get("TRANSCRIPT_TO")
 
 GOODBYE = re.compile(r"\b(bye|goodbye)\b", re.IGNORECASE)
+# Qwen asks for a route lookup by replying with a line such as "LOOKUP: Blanco, Texas".
+LOOKUP = re.compile(r"^\s*LOOKUP:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
 
 SYSTEM = (
     f"You are a flood safety assistant talking with someone on a phone call. The caller is at {LOCATION}. "
@@ -31,13 +37,23 @@ SYSTEM = (
     "three short, plain sentences, with no lists and no special characters. If you are not sure "
     "what they said, ask them to repeat it. "
 
-    "What you know: you have no live information about which places or roads are flooded, closed, "
-    "safe or clear, so never claim that about any specific place or road. Route lookup is not "
-    "connected yet, so if asked for directions, say so. You can give the general flood safety "
+    "Route lookups: you cannot see maps or flood data yourself. Otterway's map system does the "
+    "lookup for you. When the caller tells you where they want to go, reply with exactly one line "
+    "in this form and nothing else: LOOKUP: followed by the destination as a place name or "
+    "address, for example LOOKUP: Blanco, Texas. Include the city or state if the caller said it. "
+    "If you could not make out the destination, ask them to repeat it instead. The map system "
+    "then tells the caller which place it matched and what it found. "
+
+    "After a lookup you will see a message that begins with ROUTE RESULT. It comes from the map "
+    "system, not from the caller, and it is your only source of facts about routes, roads and "
+    "flooding. Answer follow-up questions, such as what the next directions are, using only what "
+    "it says. Never say that a place or road is flooded, closed, safe or clear, and never give "
+    "directions, unless a ROUTE RESULT says so. If the caller names a different destination, send "
+    "a new LOOKUP line. The routes are driving routes. You can also give the general flood safety "
     "guidance below. "
 
-    "How the call should go: when the caller names a destination, repeat it back to confirm it. "
-    "If they have not said how they plan to travel, ask. "
+    "How the call should go: when the caller names a destination, send the LOOKUP line straight "
+    "away. After the result, if they have not said how they plan to travel, ask. "
 
     "Judging the travel plan: the danger is the flood water itself, and it is the same whether "
     "someone is alone or in a group. Never suggest that travelling with other people makes an "
@@ -72,7 +88,13 @@ GREETING = (
 
 history = {}      # what Qwen sees, one list per call, kept in memory only
 transcripts = {}  # every spoken line, one list per call, for the email
+lookups = {}      # the route lookup in progress for a call, if any
 last_call_started = None  # when the app last asked for a call, to ignore double taps
+
+STAY_PUT = (
+    "If you are somewhere dry and on high ground, the safest choice is to stay where you are "
+    "until the water goes down."
+)
 
 
 def log(speaker, text):
@@ -80,9 +102,135 @@ def log(speaker, text):
     transcripts.setdefault(request.values["CallSid"], []).append(f"{speaker}: {text}")
 
 
+def route_facts(*lines):
+    """A note for Qwen about what the map system found, so it can answer follow-up questions."""
+    return "ROUTE RESULT from Otterway's map system (the caller did not say this). " + " ".join(lines)
+
+
+def trip_length(summary):
+    miles = round(summary.get("distance", 0) / 1609.344)
+    minutes = max(1, round(summary.get("duration", 0) / 60))
+    distance = "less than a mile" if miles < 1 else f"about {miles} mile{'' if miles == 1 else 's'}"
+    return f"{distance} and about {minutes} minute{'' if minutes == 1 else 's'}"
+
+
+def plan_route(destination):
+    """Look the destination up and plan a drive that avoids mapped flood areas.
+
+    Returns (spoken, facts): the words for the caller, and a note of what was found
+    for Qwen to use if the caller asks more. Every statement about flooding and
+    routes is built here from the route server's data, never written by Qwen.
+    """
+    lat, lon = LOCATION_COORDS
+    origin = [lon, lat]  # the route server works in longitude, latitude order
+    try:
+        try:
+            found = server.heigit("/pelias/v1/search?" + urlencode({
+                "text": destination, "size": 1,
+                "focus.point.lat": lat, "focus.point.lon": lon,  # prefer places near the caller
+            }))
+        except server.ApiError as error:
+            if error.status != 404:
+                raise
+            found = {}
+        matches = found.get("features") or []
+        if not matches:
+            return (
+                f"I couldn't find {destination} on the map. Could you say the destination again, "
+                "with the city or a nearby street?",
+                route_facts(f"No place matching {destination} was found, so there is no route."),
+            )
+        label = matches[0]["properties"]["label"]
+        target = matches[0]["geometry"]["coordinates"][:2]
+
+        # The same areas the route server steers around: verified closures and mapped flood observations.
+        closures = server.load_closures()
+        flood_areas = [feature["geometry"]["coordinates"] for feature in closures["features"]]
+        flood_areas += server.flood_avoidance_polygons(server.load_flood_layer()["features"])
+
+        def in_flood_area(point):
+            return any(server.route_crosses_polygon([point, point], area) for area in flood_areas)
+
+        if in_flood_area(target):
+            return (
+                f"I found {label}. That destination is inside a mapped flood area, so I advise you "
+                f"not to go there right now. {STAY_PUT} Is there somewhere else you need to get to?",
+                route_facts(f"Destination matched: {label}. It is inside a mapped flood area.",
+                            "The caller was advised not to go there. No route was given."),
+            )
+        if in_flood_area(origin):
+            return (
+                f"I found {label}, but your own location is inside a mapped flood area, so I can't "
+                "give you a safe driving route from there. Move to higher ground if you can, and "
+                "hang up and call 911 if you are in danger.",
+                route_facts(f"Destination matched: {label}.",
+                            "The caller's location is inside a mapped flood area. No route was given."),
+            )
+
+        try:
+            route = server.route_avoiding_floods([origin, target], closures)
+        except server.ApiError as error:
+            if error.status == 422:
+                return (
+                    f"I found {label}, but I could not find a driving route there that avoids the "
+                    f"mapped flood areas, so I advise you not to make this trip right now. {STAY_PUT}",
+                    route_facts(f"Destination matched: {label}.",
+                                "No driving route avoids the mapped flood areas. The caller was "
+                                "advised not to make the trip. No route was given."),
+                )
+            if error.status == 404:
+                return (
+                    f"I found {label}, but I could not find a driving route there from your location.",
+                    route_facts(f"Destination matched: {label}. No driving route was found."),
+                )
+            raise
+
+        properties = route["features"][0]["properties"]
+        steps = [step["instruction"].rstrip(".") + "."
+                 for segment in properties.get("segments", []) for step in segment.get("steps", [])]
+        length = trip_length(properties.get("summary", {}))
+        detour = bool(route.get("otterway_detour"))
+        spoken = f"I found {label}. The drive is {length}, " + (
+            "and the route detours around mapped flood areas. " if detour
+            else "and the route does not cross any mapped flood area. "
+        )
+        if steps:
+            spoken += "To start: " + " ".join(steps[:2]) + " "
+        spoken += "If you meet water on the road, turn around."
+        if len(steps) > 2:
+            spoken += " Would you like the next directions?"
+        return spoken, route_facts(
+            f"Destination matched: {label}. Driving route found: {length}.",
+            "It detours around mapped flood areas." if detour else "It crosses no mapped flood area.",
+            "The caller has heard directions 1 and 2. All driving directions in order:",
+            " ".join(f"{number}. {step}" for number, step in enumerate(steps[:30], 1)),
+        )
+    except Exception as error:
+        # Fail closed: with no map data, say so instead of guessing whether the trip is safe.
+        print("Route lookup error:", error, flush=True)
+        return (
+            "Sorry, I can't check routes or flood areas right now, so I can't tell you whether "
+            "that trip is safe. If you meet water on the road, turn around.",
+            route_facts("The lookup failed. Nothing is known about this route or about flooding on it."),
+        )
+
+
+def start_lookup(call_sid, destination):
+    """Run the lookup in the background, because Twilio only waits 5 seconds for each reply."""
+    lookup = {"result": None, "waits": 0}
+
+    def work():
+        lookup["result"] = plan_route(destination)
+
+    lookup["thread"] = threading.Thread(target=work, daemon=True)
+    lookups[call_sid] = lookup
+    lookup["thread"].start()
+
+
 def send_transcript(call_sid):
     lines = transcripts.pop(call_sid, None)  # popping means it can only be sent once
     history.pop(call_sid, None)
+    lookups.pop(call_sid, None)
     if not lines:
         return
     if not (GMAIL_SENDER and GMAIL_APP_PASSWORD and TRANSCRIPT_TO):
@@ -129,6 +277,15 @@ def speak_then_hang_up(text):
     return str(resp), 200, {"Content-Type": "text/xml"}
 
 
+def speak_then_fetch_route(text):
+    """Say a holding line, then have Twilio ask /route for the lookup's answer."""
+    log("AGENT", text)
+    resp = VoiceResponse()
+    resp.say(text)
+    resp.redirect(f"{BASE_URL}/route")
+    return str(resp), 200, {"Content-Type": "text/xml"}
+
+
 @app.route("/voice", methods=["GET", "POST"])
 def voice():
     history[request.values["CallSid"]] = [
@@ -164,8 +321,46 @@ def turn():
         messages.pop()  # forget the turn that failed
         return speak_then_listen("Sorry, I had trouble with that. Could you say it again?")
 
+    wanted = LOOKUP.search(reply or "")
+    if wanted:
+        destination = wanted.group(1).strip(" .\"'")[:120]
+        if not destination:
+            messages.pop()
+            return speak_then_listen("Sorry, where are you trying to get to?")
+        messages.append({"role": "assistant", "content": f"LOOKUP: {destination}"})
+        start_lookup(call_sid, destination)
+        return speak_then_fetch_route(f"Let me check the way to {destination}. One moment.")
+
     messages.append({"role": "assistant", "content": reply})
     return speak_then_listen(reply)
+
+
+@app.route("/route", methods=["GET", "POST"])
+def route_result():
+    """Twilio comes here after the holding line to collect the lookup's answer."""
+    call_sid = request.values["CallSid"]
+    lookup = lookups.get(call_sid)
+    if lookup is None:
+        return speak_then_listen("Where are you trying to get to?")
+
+    lookup["thread"].join(timeout=3)  # stay inside Twilio's 5 second limit
+    if lookup["thread"].is_alive() and lookup["waits"] < 4:
+        lookup["waits"] += 1
+        resp = VoiceResponse()
+        resp.pause(length=1)
+        resp.redirect(f"{BASE_URL}/route")  # not ready yet, so ask again
+        return str(resp), 200, {"Content-Type": "text/xml"}
+
+    lookups.pop(call_sid, None)
+    spoken, facts = lookup["result"] or (
+        "Sorry, the route check is taking too long, so I can't tell you whether that trip is "
+        "safe right now. If you meet water on the road, turn around.",
+        route_facts("The lookup timed out. Nothing is known about this route or about flooding on it."),
+    )
+    messages = history.setdefault(call_sid, [{"role": "system", "content": SYSTEM}])
+    messages.append({"role": "user", "content": facts})
+    messages.append({"role": "assistant", "content": spoken})
+    return speak_then_listen(spoken)
 
 
 @app.route("/status", methods=["GET", "POST"])
@@ -208,4 +403,13 @@ def start_call():
 
 
 if __name__ == "__main__":
+    # Route lookups use the same key file and flood data as server.py.
+    server.load_local_key("HEIGIT_API_KEY", "otterway.env")
+    if not os.getenv("HEIGIT_API_KEY", "").strip():
+        print("Route lookups are off: set HEIGIT_API_KEY before starting agent.py.", flush=True)
+    try:
+        areas = len(server.load_flood_layer()["features"])
+        print(f"Flood data loaded: {areas} mapped flood points and footprints.", flush=True)
+    except server.ApiError as error:
+        print(f"Route lookups are off: {error}", flush=True)
     app.run(port=5000)

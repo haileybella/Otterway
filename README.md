@@ -62,6 +62,25 @@ Historical observations appear as brown points. The closure polygons are red. Us
 
 The app sends `POST /agent/call` to its own address, and the Vite dev server forwards that to `agent.py` on port 5000 (see `proxy` in `frontend/vite.config.ts`). `agent.py` refuses the same request when it arrives through the ngrok tunnel, so only the app on this machine can make the phone ring, and it ignores a second request within 20 seconds. If the call can't be started, the call screen says so and offers **Try again**. `call.py` still places the same call from a terminal.
 
+## Route lookups on the call
+
+When the caller names a destination, Ollie looks it up and answers from map data. `agent.py` imports `server.py` and uses its place search, flood areas and flood-avoiding routing directly, so `server.py` does not have to be running for calls.
+
+| What the lookup finds | What Ollie says |
+|---|---|
+| A route that crosses no mapped flood area | The matched place, distance, time and first two directions |
+| A route that has to go around a flood area | The same, and that the route detours around mapped flood areas |
+| The destination is inside a mapped flood area | Advises the caller not to go, and gives no route |
+| No route avoids the flood areas | Advises the caller not to make the trip |
+| The place can't be found | Asks for the destination again |
+| The key, the flood CSV or HeiGIT is unavailable | Says it can't check, and makes no claim about safety |
+
+"Mapped flood areas" are the same ones the route endpoint avoids: verified closures from `OTTERWAY_CLOSURES`, plus the confirmed and candidate flood observations in the flood CSV. Those observations are historical, so Ollie always adds "if you meet water on the road, turn around".
+
+Qwen only decides when to look up (it replies `LOOKUP: <destination>`) and answers follow-up questions from the result. The sentences about flooding and routes are built in `plan_route` in `agent.py`, so the model cannot invent them.
+
+The terminal running `agent.py` needs `HEIGIT_API_KEY` (or the `Desktop/otterway.env` key file) and a readable flood CSV (`OTTERWAY_CSV` or `OTTERWAY_FLOOD_CSV`). On start, `agent.py` prints whether route lookups are ready. Routes start from the test location in `LOCATION_COORDS`, and they are driving routes.
+
 ## Flood visualization
 
 The map refreshes the flood layer from the CSV every 30 seconds. By default it uses the workshop metadata CSV. Set `OTTERWAY_FLOOD_CSV` to point to a different detection CSV. The layer reads `latitude`, `longitude`, and `flood_visible` (true, yes, or 1 for a confirmed observation). If `flood_visible` is blank, `candidate_condition` can mark a point as `flood_candidate` or `visible_inundation_candidate`. Optional `locality` and `acquisition_date` appear in the popup.
