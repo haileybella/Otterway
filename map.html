@@ -227,10 +227,12 @@
         })
         .catch(() => { routeStatus.textContent ||= "Closure data is unavailable."; });
 
+      const metadataPane = map.createPane("metadata");
+      metadataPane.style.zIndex = "390";
       const metadataLayer = L.geoJSON(null, {
         filter: feature => feature.geometry?.type === "Point",
         pointToLayer: (_, point) => L.circleMarker(point, {
-          radius: 4, color: "#525866", weight: 1, fillOpacity: 0.5
+          pane: "metadata", radius: 4, color: "#525866", weight: 1, fillOpacity: 0.5
         }),
         onEachFeature(feature, layer) {
           const label = document.createElement("span");
@@ -255,6 +257,8 @@
           })
           .finally(() => { metadataRequest = null; });
       });
+
+      metadataLayer.addTo(map);
 
       const floodLayer = L.geoJSON(null, {
         style: feature => feature.geometry.type === "Point" ? {} : ({
@@ -284,7 +288,15 @@
           '<div><span class="flood-dot flood-confirmed"></span>Confirmed location</div>' +
           '<div><span class="flood-dot"></span>Unverified candidate</div>' +
           '<div><span class="flood-area"></span>Image footprint</div>' +
-          '<div class="flood-status" role="status"></div>';
+          '<div class="flood-status" role="status"></div>' +
+          '<button type="button">Zoom to all points</button>';
+        content.querySelector("button").addEventListener("click", () => {
+          if (!map.hasLayer(metadataLayer)) metadataLayer.addTo(map);
+          Promise.resolve(metadataRequest).then(() => {
+            const bounds = metadataLayer.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+          });
+        });
         floodStatus = content.querySelector(".flood-status");
         L.DomEvent.disableClickPropagation(content);
         return content;
