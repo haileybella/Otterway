@@ -8,6 +8,7 @@ client = OpenAI(base_url="http://10.184.237.138:8000/v1", api_key="NONE", timeou
 
 QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
 LOCATION = "UT San Antonio"  # test value for now
+BASE_URL = "https://harvest-trickster-upscale.ngrok-free.dev"
 
 SYSTEM = (
     f"You are a flood safety assistant on a phone call. The caller is at {LOCATION}. "
@@ -24,10 +25,10 @@ history = {}  # one conversation per call, kept in memory only
 
 def speak_then_listen(text):
     resp = VoiceResponse()
-    gather = Gather(input="speech", action="/turn", speech_timeout="auto")
+    gather = Gather(input="speech", action=f"{BASE_URL}/turn", speech_timeout="auto")
     gather.say(text)
     resp.append(gather)
-    resp.redirect("/turn")  # reached only if the caller says nothing
+    resp.redirect(f"{BASE_URL}/turn")  # reached only if the caller says nothing
     return str(resp), 200, {"Content-Type": "text/xml"}
 
 
