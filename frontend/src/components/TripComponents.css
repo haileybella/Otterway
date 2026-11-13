@@ -1,0 +1,145 @@
+.card {
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: var(--shadow-card);
+}
+
+/* Turn banner */
+.turn-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 12px;
+  border-radius: 22px;
+  background: var(--venice);
+  box-shadow: 0 10px 24px rgb(22 88 123 / 0.25);
+}
+
+.turn-banner__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: var(--rock-blue);
+  color: var(--venice);
+}
+
+.turn-banner__icon svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.5;
+}
+
+.turn-banner__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.turn-banner__text strong {
+  font-size: 26px;
+  line-height: 30px;
+  color: var(--merino);
+}
+.turn-banner__text small {
+  font-size: 14px;
+  font-weight: 500;
+  color: #bfd6e3;
+}
+
+/* Trip card */
+.trip-card {
+  padding: 16px 18px;
+}
+
+.trip-card__eta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.trip-card__eta strong {
+  font-size: 30px;
+  line-height: 34px;
+  color: var(--venice);
+  white-space: nowrap;
+}
+.trip-card__eta span {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trip-card__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.trip-card__end {
+  display: flex;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+/* Flood status badge */
+.flood-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.flood-badge--clear {
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.flood-badge--flooding_nearby {
+  background: var(--warn-bg);
+  color: var(--warn-subtext);
+}
+.flood-badge--no_safe_route {
+  background: var(--danger-bg);
+  color: var(--emergency-red);
+}
+
+/* Flood alert banner */
+.flood-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 14px;
+  border: 1px solid var(--warn-stroke);
+  border-radius: 20px;
+  background: var(--warn-bg);
+  text-align: left;
+}
+
+.flood-alert svg {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  color: #e0962c;
+}
+.flood-alert span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.flood-alert strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--warn-text);
+}
+.flood-alert small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--warn-subtext);
+}

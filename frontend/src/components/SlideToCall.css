@@ -1,0 +1,59 @@
+.slide-to-call {
+  position: relative;
+  height: 64px;
+  border-radius: 999px;
+  background: rgb(232 85 63 / 0.16);
+  border: 1px solid rgb(232 85 63 / 0.55);
+  user-select: none;
+  touch-action: none;
+}
+
+.slide-to-call__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 74px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.slide-to-call__label span {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.slide-to-call__label strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.slide-to-call__label small {
+  font-size: 12px;
+  opacity: 0.6;
+}
+.slide-to-call__label svg {
+  color: var(--salmon);
+  width: 20px;
+  height: 20px;
+}
+
+.slide-to-call__knob {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--alert-red);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 0 16px rgb(232 85 63 / 0.5);
+  transition: transform 0.25s cubic-bezier(0.3, 1.4, 0.5, 1);
+  touch-action: none;
+}
+
+.slide-to-call__knob.is-dragging {
+  transition: none;
+}

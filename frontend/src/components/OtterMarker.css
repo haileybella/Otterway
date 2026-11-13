@@ -1,0 +1,59 @@
+.otter-marker {
+  position: relative;
+  background: none;
+  border: none;
+}
+
+.otter-marker__halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgb(46 155 214 / 0.18);
+  animation: otter-halo 2s ease-in-out infinite alternate;
+}
+
+.otter-marker__heading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Cone at the top edge; the whole layer rotates around the marker's center */
+.otter-marker__heading i {
+  width: 0;
+  height: 0;
+  margin-top: 1px;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-bottom: 14px solid var(--venice);
+}
+
+.otter-marker__disc {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--venice);
+  box-shadow: 0 4px 10px rgb(22 88 123 / 0.3);
+}
+
+/* Leaflet's CSS forces `width: auto` on images in markers; override it */
+.leaflet-container .otter-marker .otter-marker__disc img {
+  width: 34px !important;
+  height: auto !important;
+}
+
+@keyframes otter-halo {
+  from {
+    transform: scale(0.92);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}

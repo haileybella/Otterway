@@ -1,0 +1,164 @@
+.map-screen {
+  background: var(--surface);
+}
+
+.map-screen__map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--surface);
+}
+
+/* Mute the OSM tiles so the route and flood zones stand out (matches the Figma map) */
+.map-screen__map .leaflet-tile-pane {
+  filter: grayscale(0.75) brightness(1.06) contrast(0.92);
+}
+
+.map-screen__map .leaflet-control-attribution {
+  font-size: 9px;
+  background: rgb(255 255 255 / 0.7);
+  margin-bottom: calc(var(--tab-bar-space) + var(--safe-bottom));
+}
+
+.map-screen__top {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  left: 16px;
+  right: 16px;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-screen__recenter {
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--tab-bar-space) + 190px + var(--safe-bottom));
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--venice);
+  box-shadow: var(--shadow-soft);
+}
+
+.map-screen__recenter svg {
+  width: 22px;
+  height: 22px;
+}
+
+.map-screen__bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tab-bar-space) + var(--safe-bottom));
+  z-index: 400;
+}
+
+.info-card {
+  padding: 18px;
+}
+.info-card h2 {
+  font-size: 22px;
+  line-height: 28px;
+  color: var(--venice);
+}
+.info-card p {
+  margin: 6px 0 14px;
+  font-size: 15px;
+  line-height: 21px;
+  color: var(--body-text);
+}
+.info-card .pill-button {
+  width: 100%;
+}
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.spinner {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #d3dce1;
+  border-top-color: var(--venice);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Map markers */
+.dest-pin {
+  background: none;
+  border: none;
+}
+
+.flood-label {
+  background: none;
+  border: none;
+}
+.flood-label span {
+  display: inline-block;
+  transform: translate(-50%, -50%);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+  color: #1e7fb8;
+  font: 600 12px var(--font-ui);
+  white-space: nowrap;
+}
+
+/* Dev-only debug menu */
+.debug-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.debug-menu button {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.15);
+  font-size: 11px;
+}
+
+/* Non-emergency report button, next to Recenter */
+.map-screen__report {
+  position: absolute;
+  right: 72px;
+  bottom: calc(var(--tab-bar-space) + 190px + var(--safe-bottom));
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 16px 0 14px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--venice);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+
+.map-screen__report svg {
+  width: 18px;
+  height: 18px;
+}
