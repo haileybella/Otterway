@@ -47,3 +47,9 @@ Start the backend with your HeiGIT key, then open [the local map](http://127.0.0
 To add verified active closures, set `OTTERWAY_CLOSURES` to the path of a GeoJSON FeatureCollection. Each feature needs a Polygon geometry with closed rings in longitude, latitude order and a `properties.source` identifying the closure report. An optional `properties.label` appears on the map. Keep the file current by removing reopened roads. The server reads it for each route request and sends the polygons as areas to avoid. A route can be unavailable if a closure blocks access to an endpoint.
 
 Historical observations appear as brown points. The closure polygons are red. Use official closure reports to choose polygons. CSV points often represent aerial image centers and do not establish current closures.
+
+## Flood visualization
+
+The map refreshes the flood layer from the CSV every 30 seconds. By default it uses the workshop metadata CSV. Set `OTTERWAY_FLOOD_CSV` to point to a different detection CSV. The layer reads `latitude`, `longitude`, and `flood_visible` (true, yes, or 1 for a confirmed observation). If `flood_visible` is blank, `candidate_condition` can mark a point as `flood_candidate` or `visible_inundation_candidate`. Optional `locality` and `acquisition_date` appear in the popup.
+
+When a flood row supplies valid `west`, `south`, `east`, and `north` bounds, the map shades its image footprint. A footprint shows the area covered by the source image. Current road closures use the separate verified closure input.

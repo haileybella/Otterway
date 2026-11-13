@@ -15,6 +15,11 @@
     #route-form input, #route-form button { font: inherit; padding: .35rem; }
     #route-form input { width: min(100%, 24rem); box-sizing: border-box; }
     #route-result { max-height: 24vh; overflow: auto; margin-top: .5rem; }
+    .flood-legend { background: white; padding: .6rem; border-radius: .4rem; }
+    .flood-legend span { display: inline-block; width: .8rem; height: .8rem; margin-right: .35rem; vertical-align: middle; }
+    .flood-dot { border: 2px solid #0759a8; border-radius: 50%; box-sizing: border-box; }
+    .flood-confirmed { background: #0759a8; }
+    .flood-area { background: #b9dcfc; border: 1px solid #0759a8; box-sizing: border-box; }
     #status { margin: .5rem 0 0; }
   </style>
 </head>
@@ -222,26 +227,91 @@
         })
         .catch(() => { routeStatus.textContent ||= "Closure data is unavailable."; });
 
-      fetch(api + "/api/observations")
-        .then(response => {
-          if (!response.ok) throw new Error("Observations unavailable.");
-          return response.json();
-        })
-        .then(data => {
-          L.geoJSON(data, {
-            filter: feature => feature.geometry?.type === "Point",
-            pointToLayer: (_, point) => L.circleMarker(point, {
-              radius: 4, color: "#8c5118", fillOpacity: 0.55, weight: 1
-            }),
-            onEachFeature(feature, layer) {
-              const label = document.createElement("span");
-              label.textContent = "Historical observation · " +
-                feature.properties.locality + " · " + feature.properties.acquisition_date;
-              layer.bindPopup(label);
-            }
-          }).addTo(map);
-        })
-        .catch(() => { routeStatus.textContent ||= "Historical observations are unavailable."; });
+      const metadataLayer = L.geoJSON(null, {
+        filter: feature => feature.geometry?.type === "Point",
+        pointToLayer: (_, point) => L.circleMarker(point, {
+          radius: 4, color: "#525866", weight: 1, fillOpacity: 0.5
+        }),
+        onEachFeature(feature, layer) {
+          const label = document.createElement("span");
+          const { locality, acquisition_date, image_id } = feature.properties;
+          label.textContent = [locality, acquisition_date, image_id].filter(Boolean).join(" · ");
+          layer.bindPopup(label);
+        }
+      });
+      L.control.layers({}, { "All metadata points": metadataLayer }).addTo(map);
+
+      let metadataRequest;
+      metadataLayer.on("add", () => {
+        if (metadataRequest) return;
+        metadataRequest = fetch(api + "/api/observations")
+          .then(response => {
+            if (!response.ok) throw new Error("Metadata unavailable.");
+            return response.json();
+          })
+          .then(data => metadataLayer.clearLayers().addData(data))
+          .catch(() => {
+            routeStatus.textContent = "Metadata points are unavailable. Toggle the layer to retry.";
+          })
+          .finally(() => { metadataRequest = null; });
+      });
+
+      const floodLayer = L.geoJSON(null, {
+        style: feature => feature.geometry.type === "Point" ? {} : ({
+          color: "#0759a8", weight: 1, fillOpacity: 0.19,
+          dashArray: feature.properties.status === "candidate" ? "5 4" : undefined
+        }),
+        pointToLayer: (feature, point) => L.circleMarker(point, {
+          radius: 6, color: "#0759a8", weight: 2, fillColor: "#0759a8",
+          fillOpacity: feature.properties.status === "confirmed" ? 1 : 0
+        }),
+        onEachFeature(feature, layer) {
+          const label = document.createElement("span");
+          const status = feature.properties.status === "confirmed"
+            ? "Flood confirmed in source record" : "Unverified flood candidate";
+          const footprint = feature.geometry.type === "Polygon" ? "Image footprint" : "";
+          label.textContent = [status, footprint, feature.properties.locality,
+            feature.properties.date].filter(Boolean).join(" · ");
+          layer.bindPopup(label);
+        }
+      }).addTo(map);
+
+      const legend = L.control({ position: "bottomleft" });
+      let floodStatus;
+      legend.onAdd = () => {
+        const content = L.DomUtil.create("div", "flood-legend");
+        content.innerHTML = '<strong>Flood observations</strong>' +
+          '<div><span class="flood-dot flood-confirmed"></span>Confirmed location</div>' +
+          '<div><span class="flood-dot"></span>Unverified candidate</div>' +
+          '<div><span class="flood-area"></span>Image footprint</div>' +
+          '<div class="flood-status" role="status"></div>';
+        floodStatus = content.querySelector(".flood-status");
+        L.DomEvent.disableClickPropagation(content);
+        return content;
+      };
+      legend.addTo(map);
+
+      let hasFloodData = false;
+      async function refreshFloodLayer() {
+        try {
+          const response = await fetch(api + "/api/floods", { cache: "no-store" });
+          if (!response.ok) throw new Error("Flood data unavailable.");
+          const data = await response.json();
+          floodLayer.clearLayers().addData(data);
+          const points = data.features.filter(feature => feature.geometry.type === "Point");
+          const confirmed = points.filter(feature => feature.properties.status === "confirmed").length;
+          floodStatus.textContent = points.length
+            ? confirmed + " confirmed · " + (points.length - confirmed) + " candidates"
+            : "No flood locations in the CSV";
+          hasFloodData = true;
+        } catch {
+          floodStatus.textContent = hasFloodData
+            ? "Refresh failed. Showing last loaded data." : "Flood data unavailable";
+        } finally {
+          window.setTimeout(refreshFloodLayer, 30000);
+        }
+      }
+      refreshFloodLayer();
 
       form.hidden = false;
       form.addEventListener("submit", async (event) => {

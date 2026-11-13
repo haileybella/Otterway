@@ -63,6 +63,62 @@ class ApiError(Exception):
         self.status = status
 
 
+def load_flood_layer():
+    path = Path(os.getenv("OTTERWAY_FLOOD_CSV", str(CSV_PATH)))
+    features = []
+    seen = set()
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as file:
+            reader = csv.DictReader(file)
+            fields = set(reader.fieldnames or ())
+            if not {"latitude", "longitude"} <= fields or not fields.intersection(
+                {"flood_visible", "candidate_condition"}
+            ):
+                raise ValueError("Expected latitude, longitude and flood labels.")
+            for row in reader:
+                visible = (row.get("flood_visible") or "").strip().lower()
+                candidate = (row.get("candidate_condition") or "").strip().lower()
+                if visible in {"true", "yes", "1"}:
+                    status = "confirmed"
+                elif not visible and candidate in {"flood_candidate", "visible_inundation_candidate"}:
+                    status = "candidate"
+                else:
+                    continue
+                properties = {
+                    "status": status,
+                    "locality": row.get("locality") or "",
+                    "date": row.get("acquisition_date") or "",
+                }
+                geometries = []
+                try:
+                    point = coordinates(row["latitude"], row["longitude"])
+                    geometries.append(("Point", point))
+                except (TypeError, ValueError):
+                    pass
+                try:
+                    west, south = coordinates(row.get("south"), row.get("west"))
+                    east, north = coordinates(row.get("north"), row.get("east"))
+                    if west < east and south < north:
+                        ring = [[west, south], [east, south], [east, north],
+                                [west, north], [west, south]]
+                        geometries.append(("Polygon", [ring]))
+                except (TypeError, ValueError):
+                    pass
+                for kind, shape in geometries:
+                    key = (status, kind, json.dumps(shape))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    features.append({
+                        "type": "Feature",
+                        "geometry": {"type": kind, "coordinates": shape},
+                        "properties": properties,
+                    })
+    except (OSError, ValueError, csv.Error) as error:
+        raise ApiError(503, "Could not read the flood CSV. Check OTTERWAY_FLOOD_CSV.") from error
+    return {"type": "FeatureCollection", "features": features}
+
+
 def heigit(path, payload=None):
     key = os.getenv("HEIGIT_API_KEY", "").strip()
     if not key:
@@ -162,6 +218,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(200, {"status": "ok", "routing_configured": bool(os.getenv("HEIGIT_API_KEY", "").strip())})
             elif url.path == "/api/closures":
                 self.reply(200, load_closures())
+            elif url.path == "/api/floods":
+                self.reply(200, load_flood_layer())
             elif url.path == "/api/observations":
                 self.reply(200, self.server.observations)
             elif url.path.startswith("/api/images/"):
