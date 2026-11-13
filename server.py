@@ -3,6 +3,7 @@ import csv
 import json
 import mimetypes
 import os
+import shlex
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -66,7 +67,7 @@ def heigit(path, payload=None):
     key = os.getenv("HEIGIT_API_KEY", "").strip()
     if not key:
         raise ApiError(503, "Set HEIGIT_API_KEY to enable routes and address lookup.")
-    headers = {"Authorization": key, "Accept": "application/json"}
+    headers = {"Authorization": key, "Accept": "application/geo+json" if path.endswith("/geojson") else "application/json"}
     data = None
     if payload is not None:
         headers["Content-Type"] = "application/json"
@@ -210,7 +211,29 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(error.status, {"error": str(error)})
 
 
+def load_local_key():
+    """Read the Desktop key file used by the local setup instructions."""
+    if os.getenv("HEIGIT_API_KEY", "").strip():
+        return
+
+    key_file = Path.home() / "Desktop" / "otterway.env"
+    if not key_file.is_file():
+        return
+
+    for line in key_file.read_text(encoding="utf-8-sig").splitlines():
+        if line.lstrip().startswith(("export HEIGIT_API_KEY=", "HEIGIT_API_KEY=")):
+            try:
+                assignment = shlex.split(line, comments=True)[-1]
+            except (ValueError, IndexError):
+                raise SystemExit("Check the HEIGIT_API_KEY line in Desktop/otterway.env.")
+            key = assignment.partition("=")[2].strip()
+            if key and key != "PASTE_YOUR_KEY_HERE":
+                os.environ["HEIGIT_API_KEY"] = key
+            return
+
+
 if __name__ == "__main__":
+    load_local_key()
     observations, images = load_observations()
     with ThreadingHTTPServer(("127.0.0.1", int(os.getenv("PORT", "8000"))), Handler) as server:
         server.observations = observations

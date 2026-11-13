@@ -22,6 +22,8 @@
   <div id="controls">
     <button id="locate" type="button" hidden>Use my location</button>
     <form id="route-form" hidden>
+      <label for="start">Starting location</label>
+      <input id="start" maxlength="200" placeholder="UTSA Main Campus or use my location">
       <label for="destination">Destination</label>
       <input id="destination" required maxlength="200" placeholder="Texas A&amp;M University–San Antonio">
       <button type="submit">Get directions</button>
@@ -95,6 +97,7 @@
             }
             map.setView(position, 16);
             locationDot.openPopup();
+            if (!routeButton.disabled) start.value = "";
             status.textContent = `Estimated accuracy: ${Math.round(coords.accuracy)} m`;
             locate.disabled = false;
           },
@@ -112,6 +115,7 @@
       });
 
       const form = document.getElementById("route-form");
+      const start = document.getElementById("start");
       const destination = document.getElementById("destination");
       const routeStatus = document.getElementById("route-status");
       const guidance = document.getElementById("guidance");
@@ -125,6 +129,20 @@
       const api = location.port === "8080" && location.hostname === "127.0.0.1"
         ? "http://127.0.0.1:8000" : "";
       let routeLayer;
+      let endpointMarkers;
+
+      async function resolvePlace(query) {
+        const response = await fetch(api + "/api/search?" + new URLSearchParams({ q: query }));
+        const place = await response.json();
+        if (!response.ok) throw new Error(place.error || "Location lookup failed.");
+        return place;
+      }
+
+      function endpointMarker(place, fallback) {
+        const label = document.createElement("span");
+        label.textContent = place.label || fallback;
+        return L.marker([place.lat, place.lon]).bindPopup(label);
+      }
       let routePoints = [];
       let steps = [];
       let stepIndex = 0;
@@ -230,25 +248,28 @@
         event.preventDefault();
         const query = destination.value.trim();
         if (!query) return;
-        const origin = currentPosition;
+        const startQuery = start.value.trim();
+        const devicePosition = currentPosition;
         stopTracking();
         guidance.hidden = true;
         if (routeLayer) routeLayer.remove();
+        if (endpointMarkers) endpointMarkers.remove();
         turns.hidden = true;
         stepList.replaceChildren();
-        if (!origin) {
-          routeStatus.textContent = "Use my location to set your starting point.";
+        if (!startQuery && !devicePosition) {
+          routeStatus.textContent = "Enter a starting location or choose Use my location.";
           return;
         }
 
         routeStatus.textContent = "Finding a driving route…";
         routeButton.disabled = true;
+        start.readOnly = true;
         destination.readOnly = true;
         try {
-          const search = await fetch(api + "/api/search?" + new URLSearchParams({ q: query }));
-          const place = await search.json();
-          if (!search.ok) throw new Error(place.error || "Destination lookup failed.");
-
+          const [origin, place] = await Promise.all([
+            startQuery ? resolvePlace(startQuery) : devicePosition,
+            resolvePlace(query)
+          ]);
           const response = await fetch(api + "/api/route", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -260,6 +281,10 @@
           if (!feature) throw new Error("No driving route found.");
 
           routeLayer = L.geoJSON(feature, { style: { color: "#1764d6", weight: 5 } }).addTo(map);
+          endpointMarkers = L.layerGroup([
+            endpointMarker(origin, "Your location"),
+            endpointMarker(place, "Destination")
+          ]).addTo(map);
           map.fitBounds(routeLayer.getBounds(), { padding: [28, 28], maxZoom: 16 });
           const { summary, segments = [] } = feature.properties;
           closures.clearLayers();
@@ -268,6 +293,8 @@
           steps = segments.flatMap(segment => segment.steps || []);
           stepIndex = 0;
           guidance.hidden = !steps.length;
+          startGuidance.hidden = Boolean(startQuery);
+          if (startQuery) turns.open = true;
           if (steps.length) showStep();
           for (const step of steps) {
             const item = document.createElement("li");
@@ -275,7 +302,7 @@
             stepList.append(item);
           }
           turns.hidden = !stepList.children.length;
-          routeStatus.textContent = place.label + " · " +
+          routeStatus.textContent = (origin.label || "Your location") + " → " + place.label + " · " +
             Math.round(summary.distance / 1609.344) + " mi · " +
             Math.round(summary.duration / 60) + " min";
         } catch (error) {
@@ -284,6 +311,7 @@
             : error.message;
         } finally {
           routeButton.disabled = false;
+          start.readOnly = false;
           destination.readOnly = false;
         }
       });
