@@ -1,4 +1,9 @@
+import os
 import re
+import smtplib
+import threading
+from datetime import datetime
+from email.message import EmailMessage
 
 from flask import Flask, request
 from openai import OpenAI
@@ -11,6 +16,10 @@ client = OpenAI(base_url="http://10.184.237.138:8000/v1", api_key="NONE", timeou
 QWEN_MODEL = "Qwen/Qwen3-VL-8B-Instruct"
 LOCATION = "UT San Antonio"  # test value for now
 BASE_URL = "https://harvest-trickster-upscale.ngrok-free.dev"
+
+GMAIL_SENDER = os.environ.get("GMAIL_SENDER")
+GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD")
+TRANSCRIPT_TO = os.environ.get("TRANSCRIPT_TO")
 
 GOODBYE = re.compile(r"\b(bye|goodbye)\b", re.IGNORECASE)
 
@@ -59,11 +68,47 @@ GREETING = (
     f"I have your location as {LOCATION}. Where are you trying to get to?"
 )
 
-history = {}  # one conversation per call, kept in memory only
+history = {}      # what Qwen sees, one list per call, kept in memory only
+transcripts = {}  # every spoken line, one list per call, for the email
+
+
+def log(speaker, text):
+    print(f"{speaker}: {text}", flush=True)
+    transcripts.setdefault(request.values["CallSid"], []).append(f"{speaker}: {text}")
+
+
+def send_transcript(call_sid):
+    lines = transcripts.pop(call_sid, None)  # popping means it can only be sent once
+    history.pop(call_sid, None)
+    if not lines:
+        return
+    if not (GMAIL_SENDER and GMAIL_APP_PASSWORD and TRANSCRIPT_TO):
+        print("Email not sent: GMAIL_SENDER, GMAIL_APP_PASSWORD or TRANSCRIPT_TO is not set")
+        return
+
+    msg = EmailMessage()
+    msg["Subject"] = f"Flood line call transcript, {datetime.now():%Y-%m-%d %H:%M}"
+    msg["From"] = GMAIL_SENDER
+    msg["To"] = TRANSCRIPT_TO
+    msg.set_content(
+        f"Call ID: {call_sid}\nCaller location: {LOCATION}\n\n" + "\n".join(lines)
+    )
+
+    def deliver():
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as smtp:
+                smtp.login(GMAIL_SENDER, GMAIL_APP_PASSWORD)
+                smtp.send_message(msg)
+            print("Transcript emailed", flush=True)
+        except Exception as err:
+            print("Email error:", err, flush=True)
+
+    # Sent in the background so the call never waits on the email.
+    threading.Thread(target=deliver, daemon=True).start()
 
 
 def speak_then_listen(text):
-    print("AGENT: ", text, flush=True)
+    log("AGENT", text)
     resp = VoiceResponse()
     gather = Gather(input="speech", action=f"{BASE_URL}/turn", speech_timeout="auto")
     gather.say(text)
@@ -73,7 +118,7 @@ def speak_then_listen(text):
 
 
 def speak_then_hang_up(text):
-    print("AGENT: ", text, flush=True)
+    log("AGENT", text)
     resp = VoiceResponse()
     resp.say(text)
     resp.hangup()
@@ -94,13 +139,15 @@ def turn():
     call_sid = request.values["CallSid"]
     messages = history.setdefault(call_sid, [{"role": "system", "content": SYSTEM}])
     said = request.values.get("SpeechResult")
-    print("CALLER:", said, "| confidence:", request.values.get("Confidence"), flush=True)
     if not said:
         return speak_then_listen("Sorry, I didn't catch that. Where are you trying to get to?")
+    log("CALLER", said)
+    print("  confidence:", request.values.get("Confidence"), flush=True)
 
     if GOODBYE.search(said) and len(said.split()) <= 6:
-        history.pop(call_sid, None)  # forget the finished call
-        return speak_then_hang_up("Goodbye, and stay safe.")
+        response = speak_then_hang_up("Goodbye, and stay safe.")
+        send_transcript(call_sid)
+        return response
 
     messages.append({"role": "user", "content": said})
     try:
@@ -115,6 +162,13 @@ def turn():
 
     messages.append({"role": "assistant", "content": reply})
     return speak_then_listen(reply)
+
+
+@app.route("/status", methods=["GET", "POST"])
+def status():
+    # Twilio calls this when the call ends, including when the caller just hangs up.
+    send_transcript(request.values["CallSid"])
+    return "", 204
 
 
 if __name__ == "__main__":
