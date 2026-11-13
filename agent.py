@@ -25,12 +25,28 @@ SYSTEM = (
     "with other people, waiting for the storm to pass, or finding a safe shelter."
 )
 GREETING = (
-    f"Hi, this is the flood safety line calling you back. "
+    f"Hi, this is Ollie. I can help you look up directions. If you’re in immediate danger or need "
+    f"emergency help, slide the button to call nine-one-one. "
+    f" For non-emergency city services in San Antonio, call three-one-one, or two-one-zero,"
+    f" two-zero-seven, six-zero-zero-zero."
     f"I have your location as {LOCATION}. Where are you trying to get to?"
 )
 
 history = {}  # one conversation per call, kept in memory only
 
+
+
+
+The City of San Antonio’s 311 page confirms both city service numbers, and San Antonio Police lists 911 for emergencies.
+
+Once the map returns a route
+I found a route to [destination]. Your first step is [map instruction]. You can say “repeat that” to hear it again, or “find another route” if your location changed or the way is blocked.
+
+When the caller asks for help again
+“Repeat that.” Read back the last instruction. If the caller has moved or missed a turn, confirm where they are before giving a new step.
+“Find another route” or “The road is blocked.” Say, “I can check for another route. Where are you now?” Use the updated location and avoid the reported blockage if the map supports it. If no suitable route comes back, say, “I couldn’t find another route from here.”
+“I need help.” If the caller describes immediate danger, direct them to 911 right away. If it’s unclear, ask, “Are you in immediate danger, or do you need help with directions?”
+For the demo, “I can check for another route” is the promise to make once rerouting is wired up. A map result can provide directions, but Ollie should never call a route safe or send someone through a reported blockage.
 
 def speak_then_listen(text):
     print("AGENT: ", text, flush=True)
