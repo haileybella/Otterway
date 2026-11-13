@@ -114,6 +114,14 @@
   opacity: 0.75;
 }
 
+/* Shown only when the phone call could not be started */
+.call-screen__retry {
+  display: flex;
+  width: 100%;
+  max-width: 220px;
+  margin-top: 14px;
+}
+
 .call-screen__bottom {
   display: flex;
   flex-direction: column;

@@ -18,9 +18,23 @@ export function CallScreen() {
   const elapsed = useElapsed(app.callStartedAt);
   const step = app.route?.steps[0];
 
-  const caption = step
-    ? `“${step.instruction}. You’re ${app.route?.etaMinutes} minutes away.”`
-    : 'Ask Ollie anything about where you’re going.';
+  // Ollie talks over a real phone call, so while one is being placed the screen
+  // says what is happening on the phone instead of showing the in-app voice state.
+  const status =
+    app.phoneCall === 'ringing'
+      ? 'Calling your phone'
+      : app.phoneCall === 'failed'
+        ? 'Call didn’t start'
+        : voiceLabel[app.voice];
+
+  const caption =
+    app.phoneCall === 'ringing'
+      ? 'Ollie is calling your phone now. Answer to start talking.'
+      : app.phoneCall === 'failed'
+        ? 'Ollie couldn’t call your phone. Check your connection and try again.'
+        : step
+          ? `“${step.instruction}. You’re ${app.route?.etaMinutes} minutes away.”`
+          : 'Ask Ollie anything about where you’re going.';
 
   // Dev only: tap the orb to preview each voice state.
   const cycleVoice = () => {
@@ -55,9 +69,18 @@ export function CallScreen() {
 
       <span className="status-pill">
         <i />
-        {voiceLabel[app.voice]}
+        {status}
       </span>
-      <p className="call-screen__caption">{caption}</p>
+      <p className="call-screen__caption" role="status">
+        {caption}
+      </p>
+      {app.phoneCall === 'failed' && (
+        <div className="call-screen__retry">
+          <PillButton variant="soft" height={46} icon={<Phone />} onClick={() => app.startOllieCall()}>
+            Try again
+          </PillButton>
+        </div>
+      )}
 
       <div className="call-screen__bottom">
         <SlideToCall onComplete={app.switchToEmergency} />

@@ -1,5 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { CallState, Destination, FloodAlert, FloodZone, Route, Tab, VoiceState } from '../types';
+import type {
+  CallState,
+  Destination,
+  FloodAlert,
+  FloodZone,
+  PhoneCallState,
+  Route,
+  Tab,
+  VoiceState,
+} from '../types';
 import type { OtterwayService } from '../services/otterwayService';
 
 /**
@@ -19,6 +28,8 @@ export type AppStateValue = {
 
   // Calls & voice
   call: CallState;
+  /** Whether the phone agent was asked to ring the user's phone for the Ollie call. */
+  phoneCall: PhoneCallState;
   voice: VoiceState;
   setVoice: (v: VoiceState) => void;
   callStartedAt: number | null;

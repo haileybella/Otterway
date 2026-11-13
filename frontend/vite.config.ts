@@ -44,6 +44,10 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    server: phone ? { host: true } : undefined,
+    server: {
+      ...(phone ? { host: true } : {}),
+      // "Talk to Ollie" asks the phone agent (agent.py, port 5000 on this machine) to ring the user.
+      proxy: { '/agent': 'http://127.0.0.1:5000' },
+    },
   };
 });

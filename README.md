@@ -52,6 +52,16 @@ To add verified active closures, set `OTTERWAY_CLOSURES` to the path of a GeoJSO
 
 Historical observations appear as brown points. The closure polygons are red. Use official closure reports to choose polygons. CSV points often represent aerial image centers and do not establish current closures.
 
+## Call with Ollie from the app
+
+**Talk to Ollie** (and **Start talking** on the Ollie tab) asks `agent.py` to ring your phone, so the conversation with Ollie happens on a real phone call. Run these three on the same machine, each in its own terminal.
+
+1. `python agent.py`, with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_NUMBER` and `MY_PHONE` set in that terminal. `MY_PHONE` is the phone that rings, and on a Twilio trial it must be a verified number.
+2. `ngrok http 5000`, so Twilio can reach `agent.py`. The address it prints must match `BASE_URL` in `agent.py`.
+3. `npm run dev` in `frontend/`.
+
+The app sends `POST /agent/call` to its own address, and the Vite dev server forwards that to `agent.py` on port 5000 (see `proxy` in `frontend/vite.config.ts`). `agent.py` refuses the same request when it arrives through the ngrok tunnel, so only the app on this machine can make the phone ring, and it ignores a second request within 20 seconds. If the call can't be started, the call screen says so and offers **Try again**. `call.py` still places the same call from a terminal.
+
 ## Flood visualization
 
 The map refreshes the flood layer from the CSV every 30 seconds. By default it uses the workshop metadata CSV. Set `OTTERWAY_FLOOD_CSV` to point to a different detection CSV. The layer reads `latitude`, `longitude`, and `flood_visible` (true, yes, or 1 for a confirmed observation). If `flood_visible` is blank, `candidate_condition` can mark a point as `flood_candidate` or `visible_inundation_candidate`. Optional `locality` and `acquisition_date` appear in the popup.

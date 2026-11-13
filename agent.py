@@ -2,11 +2,13 @@ import os
 import re
 import smtplib
 import threading
+import time
 from datetime import datetime
 from email.message import EmailMessage
 
 from flask import Flask, request
 from openai import OpenAI
+from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Gather
 
 app = Flask(__name__)
@@ -70,6 +72,7 @@ GREETING = (
 
 history = {}      # what Qwen sees, one list per call, kept in memory only
 transcripts = {}  # every spoken line, one list per call, for the email
+last_call_started = None  # when the app last asked for a call, to ignore double taps
 
 
 def log(speaker, text):
@@ -170,6 +173,38 @@ def status():
     # Twilio calls this when the call ends, including when the caller just hangs up.
     send_transcript(request.values["CallSid"])
     return "", 204
+
+
+@app.route("/agent/call", methods=["POST"])
+def start_call():
+    """The app's Talk to Ollie button lands here. It rings the phone, as call.py does by hand."""
+    global last_call_started
+    # The public tunnel exists only so Twilio can reach /voice, /turn and /status.
+    # ngrok adds X-Forwarded-For to what it forwards, and the app's own requests
+    # (through the Vite proxy on this machine) do not, so this stops anyone who
+    # finds the tunnel address from making the phone ring.
+    if request.headers.get("X-Forwarded-For"):
+        return {"error": "Calls can only be started from the Otterway app."}, 403
+    if last_call_started is not None and time.monotonic() - last_call_started < 20:
+        return {"error": "Ollie is already calling you."}, 429
+
+    try:
+        call = Client().calls.create(  # reads TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN
+            to=os.environ["MY_PHONE"],           # your verified mobile
+            from_=os.environ["TWILIO_NUMBER"],   # your Twilio trial number
+            url=f"{BASE_URL}/voice",
+            status_callback=f"{BASE_URL}/status",
+        )
+    except KeyError as missing:
+        print(f"Call not started: {missing.args[0]} is not set", flush=True)
+        return {"error": f"{missing.args[0]} is not set where agent.py runs."}, 503
+    except Exception as err:
+        print("Call error:", err, flush=True)
+        return {"error": "Twilio could not start the call."}, 502
+
+    last_call_started = time.monotonic()
+    print("Call requested from the app:", call.sid, flush=True)
+    return {"call_sid": call.sid}, 202
 
 
 if __name__ == "__main__":

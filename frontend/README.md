@@ -32,7 +32,7 @@ HTTPS matters because phones only allow location and microphone access on secure
 ## Walk through the flow
 1. **Home:** tap **Where do you need to go?** and type `oak`.
 2. Pick **1420 Oak St** (Route clear). The map shows the flood zone, the route, your otter marker and the trip card.
-3. Tap **Talk to Ollie** to open the full-screen call. In dev, tap the orb to cycle Idle → Listening → Thinking → Speaking.
+3. Tap **Talk to Ollie** to open the full-screen call. This also asks the phone agent to ring your phone (see "Call with Ollie from the app" in the root README); if `agent.py` isn't running, the screen shows "Call didn’t start". In dev, tap the orb to cycle Idle → Listening → Thinking → Speaking.
 4. Tap **Map**. The call stays live in the call bar at the top.
 5. Tap **Switch to 911**, or use **Slide to call 911** on the call screen.
 6. Search again and pick **Oak Hills Center** to see the "No safe route" state.

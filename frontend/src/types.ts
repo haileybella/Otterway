@@ -47,6 +47,8 @@ export type FloodAlert = {
 export type Tab = 'home' | 'map' | 'ollie';
 export type CallState = 'none' | 'ollie' | 'emergency';
 export type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
+/** Ollie talks over a real phone call: 'ringing' once the app has asked for it, 'failed' if that request did not go through. */
+export type PhoneCallState = 'idle' | 'ringing' | 'failed';
 
 /** Compass bearing between two points, in degrees (0 = north). */
 export function bearing(a: LatLng, b: LatLng): number {

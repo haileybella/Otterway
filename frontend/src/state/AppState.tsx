@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CallState, Destination, FloodAlert, FloodZone, Route, Tab, VoiceState } from '../types';
+import type {
+  CallState,
+  Destination,
+  FloodAlert,
+  FloodZone,
+  PhoneCallState,
+  Route,
+  Tab,
+  VoiceState,
+} from '../types';
 import { mockService, type OtterwayService } from '../services/otterwayService';
 import { call911 } from '../services/emergencyDialer';
+import { requestOllieCall } from '../services/ollieCall';
 import { AppStateContext, type AppStateValue } from './appStateContext';
 
 export function AppStateProvider({
@@ -17,6 +27,7 @@ export function AppStateProvider({
   const [isReportOpen, setReportOpen] = useState(false);
 
   const [call, setCall] = useState<CallState>('none');
+  const [phoneCall, setPhoneCall] = useState<PhoneCallState>('idle');
   const [voice, setVoice] = useState<VoiceState>('idle');
   const [callStartedAt, setCallStartedAt] = useState<number | null>(null);
   const [isMuted, setMuted] = useState(false);
@@ -71,10 +82,18 @@ export function AppStateProvider({
     setVoice('listening');
     setMuted(false);
     if (openFullScreen) setCallScreenOpen(true);
+
+    // Ollie talks over a real phone call, so ask the phone agent to ring the user.
+    setPhoneCall('ringing');
+    requestOllieCall().catch((error: unknown) => {
+      console.warn('[ollie] Could not start the phone call:', error);
+      setPhoneCall('failed');
+    });
   }, []);
 
   const switchToEmergency = useCallback(() => {
     setCall('emergency');
+    setPhoneCall('idle');
     setCallStartedAt(Date.now());
     setVoice('idle'); // Ollie goes on standby
     setMuted(false);
@@ -87,6 +106,7 @@ export function AppStateProvider({
 
   const endCall = useCallback(() => {
     setCall('none');
+    setPhoneCall('idle');
     setCallStartedAt(null);
     setVoice('idle');
     setMuted(false);
@@ -106,6 +126,7 @@ export function AppStateProvider({
 
   const debugSetCall = useCallback((c: CallState) => {
     setCall(c);
+    setPhoneCall('idle'); // the debug menu never rings a phone
     setCallStartedAt(c === 'none' ? null : Date.now());
     setVoice(c === 'ollie' ? 'listening' : 'idle');
   }, []);
@@ -121,6 +142,7 @@ export function AppStateProvider({
       isReportOpen,
       setReportOpen,
       call,
+      phoneCall,
       voice,
       setVoice,
       callStartedAt,
@@ -149,6 +171,7 @@ export function AppStateProvider({
       isCallScreenOpen,
       isReportOpen,
       call,
+      phoneCall,
       voice,
       callStartedAt,
       isMuted,
