@@ -1,0 +1,188 @@
+.call-screen {
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(14px + var(--safe-top)) 24px calc(14px + var(--safe-bottom));
+  background: linear-gradient(var(--night-top), var(--night-bottom));
+  color: #fff;
+  text-align: center;
+}
+
+.call-screen__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  text-align: left;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--mini-bay);
+}
+
+.avatar img {
+  width: 32px;
+}
+
+.call-screen__who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.call-screen__who small {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.6;
+}
+.call-screen__who strong {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.timer-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-pill i,
+.status-pill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live-green);
+}
+
+.call-screen__title {
+  display: flex;
+  flex-direction: column;
+  margin: 28px 0 0;
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.call-screen__title span {
+  opacity: 0.55;
+}
+
+.call-screen__orb {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 0;
+}
+
+/* Shrink the orb on short phones */
+@media (max-height: 760px) {
+  .call-screen__orb .voice-orb {
+    --orb-size: 160px !important;
+  }
+}
+
+.status-pill {
+  padding: 9px 16px;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.18);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.status-pill i {
+  background: var(--mini-bay);
+}
+
+.call-screen__caption {
+  margin: 14px 8px 0;
+  font-size: 16px;
+  line-height: 23px;
+  opacity: 0.75;
+}
+
+.call-screen__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-self: stretch;
+  margin-top: 22px;
+}
+
+/* Call controls */
+.call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+}
+
+.call-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+.call-control span {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+}
+.call-control span svg {
+  width: 26px;
+  height: 26px;
+}
+.call-control small {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.call-control--end span {
+  background: var(--alert-red);
+}
+
+/* Ollie tab */
+.ollie-tab {
+  z-index: 0;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: calc(var(--tab-bar-space) + 40px);
+}
+
+.ollie-tab__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+.ollie-tab__body {
+  margin: 0 0 22px;
+  max-width: 300px;
+  font-size: 15px;
+  line-height: 22px;
+  opacity: 0.7;
+}
+.ollie-tab .pill-button {
+  flex: none;
+  width: 100%;
+  max-width: 320px;
+}
+
+.call-controls--four {
+  gap: 18px;
+}
