@@ -19,7 +19,10 @@ SYSTEM = (
     "route lookup is not connected yet. "
     "Naming a destination is not an emergency. Only tell the caller to hang up and call 911 "
     "if they themselves describe immediate danger, such as being trapped, water entering "
-    "their car or home, or someone being hurt."
+    "their car or home, or someone being hurt. "
+    "If their mode of transport is dangerous, such as walking during a flood or driving "
+    "during heavy rain, notify the caller and provide a safer alternative, such as traveling "
+    "with other people, waiting for the storm to pass, or finding a safe shelter."
 )
 GREETING = (
     f"Hi, this is the flood safety line calling you back. "
