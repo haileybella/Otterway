@@ -1,88 +1,215 @@
 # Otterway
-Dell Social AI Impact Datathon
 
+**Find your otterway there safely.**
 
-## Otterway backend
+Otterway is a mobile navigation and AI voice-guide prototype built around a familiar question during San Antonio flooding: **How do I get from where I am to where I need to be?**
 
-The CSV is an index of historical images. Each row describes an image, and its coordinates may be the center of an aerial footprint. The backend converts those rows into GeoJSON pins. Historical observations carry no live road-closure status.
+Find driving directions from your current location on a mobile map, or call **Ollie**, our AI otter guide, for a spoken conversation. The datathon demo explores how maps and phone-based AI can make navigation guidance easier to access when a familiar trip becomes uncertain.
 
-## Start locally
+Built for the **Dell Social AI Impact Datathon**.
 
-From the Otterway folder, run `python3 server.py` with Python 3.9 or newer. By default it reads the CSV and images from the sibling GB10competition folder. Set `OTTERWAY_CSV` and `OTTERWAY_IMAGES` to override those paths. Restart after adding images or changing the CSV.
+## The problem
 
-| Endpoint | What it gives you |
-|---|---|
-| `GET /api/health` | Server status and whether a key is configured |
-| `GET /api/observations` | Map pins as a GeoJSON FeatureCollection |
-| `GET /api/images/{image_id}` | An image if the corresponding file exists locally |
-| `GET /api/reverse?lat=29.4241&lon=-98.4936` | An approximate nearby address or place label |
-| `POST /api/route` | Driving route geometry and turn steps |
+Flooding can turn an everyday trip into an unfamiliar situation. People need to understand where they are, where they need to go, and what to do next.
 
-## Connect the mapping APIs
+Otterway explores two ways to make that guidance accessible on a phone:
 
-[Sign up with HeiGIT](https://account.heigit.org/) and copy the full Standard API key from your dashboard. Enter it privately in your terminal using the default macOS shell, zsh.
+- **See the trip.** Use a map with your current location, a destination, and driving directions.
+- **Talk it through.** Speak with an AI guide over a real phone call.
+
+The prototype demonstrates these interactions. It does not currently verify flood conditions or determine whether a road is safe to travel.
+
+## The solution
+
+Otterway brings together a mobile interface, a live routing map, and a phone-based AI guide:
+
+1. **Start where you are.** Allow location access so the standalone map can use your phone’s GPS.
+2. **Choose your destination.** Enter where you need to go and request driving directions.
+3. **Hear the next turn.** Start browser voice guidance to hear route instructions aloud.
+4. **Talk to Ollie.** Use the separate Twilio phone prototype to speak with an AI guide powered by Qwen running on the ASUS Ascent GX10.
+
+These components demonstrate the experience we want to bring together: visual navigation and conversational guidance in one mobile flow.
+
+## Meet Ollie
+
+Ollie is Otterway’s AI voice guide. Instead of typing into a chat window, you speak over a phone call and hear Ollie respond.
+
+During each conversation:
+
+1. **Twilio captures your speech** and converts it into text.
+2. **The Python phone agent sends your message and conversation history to Qwen.**
+3. **Qwen generates Ollie’s response on the ASUS Ascent GX10.**
+4. **Twilio reads the response aloud** and listens for your next turn.
+
+The current phone prototype uses a fixed test location. Live route lookup during a call is not available on `main`.
+
+## Powered by the ASUS Ascent GX10
+
+We ran **Qwen3-VL-8B-Instruct** on the **ASUS Ascent GX10**, powered by the **NVIDIA GB10 Grace Blackwell Superchip**.
+
+The GX10 handled the model inference behind Ollie’s replies. Our Python agent connected to the Qwen server through an OpenAI-compatible client, sending the caller’s transcribed message and conversation history to the model.
+
+This gave each part of the system a clear role:
+
+| Component | Role |
+| --- | --- |
+| **ASUS Ascent GX10 / NVIDIA GB10** | Runs Qwen and generates Ollie’s responses |
+| **Qwen3-VL-8B-Instruct** | Processes the conversation and produces text replies |
+| **Python phone agent** | Coordinates messages, conversation history, and model requests |
+| **Twilio Voice** | Handles the phone call, speech transcription, and spoken playback |
+
+Although Qwen3-VL supports vision, this prototype uses **text-based conversation**. Twilio handles the audio; Qwen generates the reply.
+
+[Learn more about the ASUS Ascent GX10](https://www.asus.com/displays-desktops/mini-pcs/ascent-series/asus-ascent-gx10/)
+
+## Design & AI interaction
+
+We designed Otterway’s **mobile screens, components, and user flows in Figma** before building the interface in React.
+
+The design follows three main interactions:
+
+- **Set a destination:** move from a starting location to a trip request.
+- **Follow a route:** view directions on a mobile map.
+- **Connect with Ollie:** transition into a voice-guidance experience.
+
+The AI interaction extends that experience beyond the screen. The phone agent includes conversation history with each model request so Ollie can respond in the context of the ongoing call.
+
+## Demo features
+
+| Feature | Current implementation |
+| --- | --- |
+| Mobile interface | React screens with sample destinations and routes |
+| Ollie call interface | Simulated call experience in the React app |
+| Current-location lookup | Live GPS in the standalone map, with location permission |
+| Driving directions | HeiGIT routing through the Python map server |
+| Spoken turn instructions | Browser voice guidance in the standalone map |
+| Real phone conversation | Twilio Voice connected to the Python agent and Qwen |
+| AI inference on the GX10 | Qwen3-VL-8B-Instruct generates Ollie’s replies |
+
+**Current scope:** the React app, standalone map, and phone agent are separate prototype components. The demo does not yet connect live routing to Ollie’s calls or incorporate live flood and road-closure data.
+
+## Tech stack
+
+| Layer | Tools |
+| --- | --- |
+| UI/UX design | Figma |
+| Mobile frontend | React, Vite |
+| Map server | Python |
+| Driving directions | HeiGIT |
+| Map voice guidance | Browser speech synthesis |
+| Phone integration | Twilio Voice |
+| Phone agent | Python, Flask, OpenAI-compatible client |
+| AI model | Qwen3-VL-8B-Instruct |
+| AI hardware | ASUS Ascent GX10 with NVIDIA GB10 Grace Blackwell Superchip |
+| Local webhook tunnel | ngrok |
+
+## Getting started
+
+Choose the component you want to try below.
+
+### 1. Run the mobile web app
+
+Use **Node.js 20.19+ on the 20.x line**, or **Node.js 22.12 or newer**.
+
+From the repository root:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the local URL printed by Vite.
+
+To try the interface on a phone:
+
+```bash
+npm run dev:phone
+```
+
+Open the HTTPS network URL from a phone connected to the same Wi-Fi.
+
+The React app on `main` uses **sample destinations and routes** and **simulates the Ollie call screen**. For live GPS and directions, run the standalone map below.
+
+### 2. Try live GPS and driving directions
+
+Get a Standard API key from the [HeiGIT account portal](https://account.heigit.org/).
+
+With **Python 3.9 or newer**, run these commands from the repository root in **zsh**:
 
 ```zsh
-read -rs 'HEIGIT_API_KEY?Paste your HeiGIT key and press Return: '
+read -rs 'HEIGIT_API_KEY?Paste your HeiGIT API key and press Return: '
 export HEIGIT_API_KEY
 python3 server.py
 ```
 
-Then try these in a second terminal.
+Open [http://127.0.0.1:8000/map.html](http://127.0.0.1:8000/map.html), then:
 
-```sh
-curl 'http://127.0.0.1:8000/api/reverse?lat=29.4241&lon=-98.4936'
-curl http://127.0.0.1:8000/api/route -H 'Content-Type: application/json' \
-  -d '{"origin":{"lat":29.4241,"lon":-98.4936},"destination":{"lat":29.4407,"lon":-98.4803}}'
+1. Select **Use my location** and allow location access.
+2. Enter a destination.
+3. Select **Get directions**.
+4. Select **Start voice guidance** to hear turn instructions.
+
+These are standard driving directions. They are not checked against flooding or road closures.
+
+### 3. Try the Ollie phone prototype
+
+You will need:
+
+- A Twilio account and Voice-capable phone number.
+- A reachable Qwen server with an OpenAI-compatible endpoint.
+- ngrok for exposing the local Flask server to Twilio.
+- A verified recipient number if using a Twilio trial.
+
+From the repository root, create a virtual environment and install the dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install flask openai twilio
 ```
 
-Routes and map geometry use GeoJSON order `[longitude, latitude]`. The app sends named `lat` and `lon` fields so the backend can put them in the right order. The route's `properties.segments[].steps` contain instructions the frontend can speak. The frontend owns device GPS and decides when to advance or request a new route. Live flood closure data and avoidance would be a separate integration.
+In a separate terminal, start the tunnel:
 
-The basemap is separate. For a small interactive demo, a map library can display OpenStreetMap tiles under the [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/) with visible attribution. The directions and address services come from [HeiGIT](https://api.heigit.org/). The API key stays in the backend terminal. For a separate local frontend origin, set `OTTERWAY_FRONTEND_ORIGIN` to its exact origin, for example `http://localhost:5173`.
+```bash
+ngrok http 5000
+```
 
-## Add the photos
+Configure the prototype:
 
-Find the image's row by `image_id`. Check `source_url`, `source_download_url`, `reuse`, and `attribution`. Start with one before/after pair and follow the source's download and reuse terms. Save each image using the filename from the row's `image_path` under the configured images folder. The backend accepts both the CSV's relative directory layout and a flat folder with the same filenames. Restart and look for an `image_url` on the pin. A missing photo has a null URL and the pin still displays if coordinates exist. Rows without coordinates have null geometry. For example, the local AF001 photo is available at /api/images/AF001 but has no map position in the CSV.
+1. Set the ngrok tunnel URL in `agent.py` and the two callback URLs in `call.py`.
+2. Point the OpenAI-compatible client in `agent.py` at your reachable Qwen server.
+3. Set the following environment variables in the terminal used to run `call.py`:
 
-## In-app route and voice
+| Variable | Purpose |
+| --- | --- |
+| `TWILIO_ACCOUNT_SID` | Twilio account identifier |
+| `TWILIO_AUTH_TOKEN` | Twilio authentication token |
+| `TWILIO_NUMBER` | Twilio phone number placing the call |
+| `MY_PHONE` | Recipient phone number |
 
-Start the backend with your HeiGIT key, then open [the local map](http://127.0.0.1:8000/map.html). Select **Use my location**, enter a destination, and select **Get directions**. **Start voice guidance** reads the current maneuver using the browser voice and advances as accurate location updates approach the next maneuver. **Next step** lets you step through a route during a stationary demo. The prototype uses proximity to maneuvers and has no automatic off-route recalculation. The browser must allow location access.
+Keep credentials out of committed source files.
 
-To add verified active closures, set `OTTERWAY_CLOSURES` to the path of a GeoJSON FeatureCollection. Each feature needs a Polygon geometry with closed rings in longitude, latitude order and a `properties.source` identifying the closure report. An optional `properties.label` appears on the map. Keep the file current by removing reopened roads. The server reads it for each route request and sends the polygons as areas to avoid. A route can be unavailable if a closure blocks access to an endpoint.
+Start the phone agent:
 
-Historical observations appear as brown points. The closure polygons are red. Use official closure reports to choose polygons. CSV points often represent aerial image centers and do not establish current closures.
+```bash
+python agent.py
+```
 
-## Call with Ollie from the app
+In another terminal, activate the virtual environment and place the call:
 
-**Talk to Ollie** (and **Start talking** on the Ollie tab) asks `agent.py` to ring your phone, so the conversation with Ollie happens on a real phone call. Run these three on the same machine, each in its own terminal.
+```bash
+source .venv/bin/activate
+python call.py
+```
 
-1. `python agent.py`, with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_NUMBER` and `MY_PHONE` set in that terminal. `MY_PHONE` is the phone that rings, and on a Twilio trial it must be a verified number.
-2. `ngrok http 5000`, so Twilio can reach `agent.py`. The address it prints must match `BASE_URL` in `agent.py`.
-3. `npm run dev` in `frontend/`.
+On `main`, **`call.py` initiates an outgoing call**. Ollie uses a fixed test location, and live route lookup during the call is unavailable.
 
-The app sends `POST /agent/call` to its own address, and the Vite dev server forwards that to `agent.py` on port 5000 (see `proxy` in `frontend/vite.config.ts`). `agent.py` refuses the same request when it arrives through the ngrok tunnel, so only the app on this machine can make the phone ring, and it ignores a second request within 20 seconds. If the call can't be started, the call screen says so and offers **Try again**. `call.py` still places the same call from a terminal.
+## What’s next
 
-## Route lookups on the call
+- **Flood-aware routing:** incorporate reliable flood and road-closure data into route decisions.
+- **Live directions through Ollie:** connect the phone agent to location and routing services.
+- **A connected mobile experience:** replace sample routes and simulated calls with the working map and phone integrations.
+- **Clearer uncertainty:** communicate when road conditions are unknown or route information may be outdated.
 
-When the caller names a destination, Ollie looks it up and answers from map data. `agent.py` imports `server.py` and uses its place search, flood areas and flood-avoiding routing directly, so `server.py` does not have to be running for calls.
-
-| What the lookup finds | What Ollie says |
-|---|---|
-| A route that crosses no mapped flood area | The matched place, distance, time and first two directions |
-| A route that has to go around a flood area | The same, and that the route detours around mapped flood areas |
-| The destination is inside a mapped flood area | Advises the caller not to go, and gives no route |
-| No route avoids the flood areas | Advises the caller not to make the trip |
-| The place can't be found | Asks for the destination again |
-| The key, the flood CSV or HeiGIT is unavailable | Says it can't check, and makes no claim about safety |
-
-"Mapped flood areas" are the same ones the route endpoint avoids: verified closures from `OTTERWAY_CLOSURES`, plus the confirmed and candidate flood observations in the flood CSV. Those observations are historical, so Ollie always adds "if you meet water on the road, turn around".
-
-Qwen only decides when to look up (it replies `LOOKUP: <destination>`) and answers follow-up questions from the result. The sentences about flooding and routes are built in `plan_route` in `agent.py`, so the model cannot invent them.
-
-The terminal running `agent.py` needs `HEIGIT_API_KEY` (or the `Desktop/otterway.env` key file) and a readable flood CSV (`OTTERWAY_CSV` or `OTTERWAY_FLOOD_CSV`). On start, `agent.py` prints whether route lookups are ready. Routes start from the test location in `LOCATION_COORDS`, and they are driving routes.
-
-## Flood visualization
-
-The map refreshes the flood layer from the CSV every 30 seconds. By default it uses the workshop metadata CSV. Set `OTTERWAY_FLOOD_CSV` to point to a different detection CSV. The layer reads `latitude`, `longitude`, and `flood_visible` (true, yes, or 1 for a confirmed observation). If `flood_visible` is blank, `candidate_condition` can mark a point as `flood_candidate` or `visible_inundation_candidate`. Optional `locality` and `acquisition_date` appear in the popup.
-
-When a flood row supplies valid `west`, `south`, `east`, and `north` bounds, the map shades its image footprint. A footprint shows the area covered by the source image. Current road closures use the separate verified closure input.
+Our goal is to help people in San Antonio understand their options when flooding changes the way home.
