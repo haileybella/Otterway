@@ -103,6 +103,46 @@ The AI interaction extends that experience beyond the screen. The phone agent in
 | AI hardware | ASUS Ascent GX10 with NVIDIA GB10 Grace Blackwell Superchip |
 | Local webhook tunnel | ngrok |
 
+## Architecture
+
+Otterway currently has three separate components: the React mobile demo, the live routing map, and Ollie’s phone prototype.
+
+```mermaid
+flowchart TD
+    subgraph App["Mobile app demo"]
+        UI["React interface"] --> Samples["Sample destinations and routes"]
+        UI --> Sim["Simulated Ollie call screen"]
+    end
+
+    subgraph Maps["Live map"]
+        Map["Standalone map<br/>GPS + destination"]
+        Server["Python map server"]
+        API["HeiGIT routing API"]
+        Map -->|"Request directions"| Server
+        Server -->|"Route query"| API
+        API -->|"Driving route"| Server
+        Server -->|"Route + turn instructions"| Map
+        Map --> Voice["Browser voice guidance"]
+    end
+
+    subgraph Phone["Ollie phone prototype"]
+        Call["call.py"] -->|"Initiates call through Twilio"| Caller["User on phone"]
+        Caller -->|"Speech"| Twilio["Twilio Voice"]
+        Twilio -->|"Transcribed text<br/>Webhook via ngrok"| Agent["Python / Flask agent<br/>Conversation history"]
+
+        subgraph Hardware["ASUS Ascent GX10 · NVIDIA GB10"]
+            Qwen["Qwen3-VL-8B-Instruct"]
+        end
+
+        Agent -->|"Message + history<br/>OpenAI-compatible API"| Qwen
+        Qwen -->|"Generated reply"| Agent
+        Agent -->|"Response instructions"| Twilio
+        Twilio -->|"Spoken reply"| Caller
+    end
+```
+
+The phone prototype uses a fixed test location and does not yet retrieve live routes. The map provides standard driving directions without live flood or road-closure checks.
+
 ## Getting started
 
 Choose the component you want to try below.
