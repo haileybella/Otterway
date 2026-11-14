@@ -252,4 +252,4 @@ On `main`, **`call.py` initiates an outgoing call**. Ollie uses a fixed test loc
 - **A connected mobile experience:** replace sample routes and simulated calls with the working map and phone integrations.
 - **Clearer uncertainty:** communicate when road conditions are unknown or route information may be outdated.
 
-Our goal is to help people in San Antonio understand their options when flooding changes the way home.
+Our goal is to help Texans understand their options when flooding changes the way home.
